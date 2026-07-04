@@ -7,6 +7,7 @@ export interface TopWordRow {
   total_frequency: number;
   exam_count: number;
   in_official_wordlist: boolean;
+  pinyin: string | null;
 }
 
 export interface TopWordsResponse {
@@ -39,6 +40,26 @@ export interface SearchWordResponse {
   word: string;
   aggregates: WordAggregate[];
   occurrences: WordOccurrence[];
+}
+
+export interface ExampleSentence {
+  sentence: string;
+  exam_id: string;
+  source_type: Exclude<SourceType, "all">;
+  filename: string | null;
+  exam_hsk_level: number | null;
+}
+
+export interface WordDetailResponse {
+  word: string;
+  in_wordlist: boolean;
+  pinyin: string | null;
+  hsk_level: number | null;
+  definition: string | null;
+  definition_th: string | null;
+  sentence_total: number;
+  file_total: number;
+  sentences: ExampleSentence[];
 }
 
 export interface ExamRow {
