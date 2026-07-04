@@ -11,7 +11,7 @@ before changing anything here.
 ## Pipeline Stages
 
 ```
-Push to main/develop, or PR to main
+Push to master/develop, or PR to master
       │
       ▼
 ┌─────────────┐
@@ -32,7 +32,7 @@ Deploy is NOT a job in this workflow — see "Deployment" below.
 ```
 
 PRs run Test + Security + `terraform plan` (no `apply`, no deploy) — this is the
-review gate. Merging to `main` runs the same stages and then `terraform apply`.
+review gate. Merging to `master` runs the same stages and then `terraform apply`.
 
 ---
 
@@ -78,6 +78,15 @@ GitHub feature, free with no signup or token, covering `requirements/`
 `infra/` (terraform). It checks weekly and opens a PR per outdated/vulnerable
 dependency directly, rather than just reporting a finding like Snyk/Safety
 would — this replaced both of those in the pipeline for exactly that reason.
+
+**Watch the `terraform` ecosystem PRs closely before merging.** Dependabot
+bumped the `vercel/vercel` provider constraint from `~> 1.0` to `~> 5.3` in
+one PR — a 4-major-version jump that made `sensitive` a required argument on
+`vercel_project_environment_variable` (previously optional) and broke
+`terraform validate`. Unlike a Python patch-version bump, a Terraform
+provider major-version bump can change resource schemas outright. Always run
+`terraform validate`/`plan` locally against a Dependabot terraform PR before
+merging, the same way you would review any other breaking-change upgrade.
 
 ### SonarCloud
 
