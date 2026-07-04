@@ -1,0 +1,51 @@
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+coverage.xml
+*.log
+
+# Data files (add your exam files here — don't commit copyrighted material)
+data/reading/
+data/listening/
+data/raw/
+data/wordlist/*.csv
+!data/wordlist/hsk_wordlist_EXAMPLE.csv
+
+# Wordlist snapshot from the private flashcard app (pinyin, definitions,
+# example sentences) — this is proprietary content, not ours to publish.
+# The actual portfolio output (word_counts.*, unmatched_words_*, plots) is
+# still tracked below — it's just word/frequency data, no app content in it.
+data/processed/hsk_wordlist.csv
+data/processed/hsk_wordlist.parquet
+data/processed/hsk_word_level_lookup.csv
+
+# Whisper model cache
+~/.cache/whisper/
+
+# Third-party reference data (downloaded on demand by notebooks, not ours to redistribute)
+data/external/
+
+# Terraform state
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/.terraform.lock.hcl
+
+# Docker
+*.tar

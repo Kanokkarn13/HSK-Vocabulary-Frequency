@@ -1,0 +1,118 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -r requirements/api.txt -r requirements/etl.txt pytest pytest-cov
+
+      - name: Run tests
+        run: pytest tests/ --cov=backend --cov=etl --cov-report=xml -v
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  security:
+    name: Security & Quality Scan
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # SonarCloud needs full history for accurate blame/new-code stats
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -r requirements/api.txt -r requirements/etl.txt bandit pytest pytest-cov
+
+      - name: Bandit SAST scan
+        run: bandit -r backend/ etl/ -f json -o bandit-report.json || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: bandit-report.json
+
+      - name: Coverage report (input for SonarCloud)
+        run: pytest tests/ --cov=backend --cov=etl --cov-report=xml -v || true
+
+      - name: SonarCloud scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  terraform:
+    name: IaC Plan/Apply (Vercel + Neon)
+    needs: security
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+
+      - name: Terraform fmt check
+        run: terraform fmt -check
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: |
+          terraform plan \
+            -var="vercel_api_token=${{ secrets.VERCEL_TOKEN }}" \
+            -var="neon_api_key=${{ secrets.NEON_API_KEY }}"
+
+      - name: Terraform apply (main branch only)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          terraform apply -auto-approve \
+            -var="vercel_api_token=${{ secrets.VERCEL_TOKEN }}" \
+            -var="neon_api_key=${{ secrets.NEON_API_KEY }}"
+
+# Deploy is intentionally NOT a job here: infra/main.tf's vercel_project resource
+# links the Vercel project to this GitHub repo (git_repository block), so Vercel's
+# own native integration handles it for free — a preview deployment per PR and a
+# production deployment on every push to main, with zero extra CI minutes spent.
+#
+# Required repo secrets (Settings > Secrets and variables > Actions):
+#   SONAR_TOKEN    — sonarcloud.io > My Account > Security
+#   VERCEL_TOKEN   — vercel.com account settings > Tokens
+#   NEON_API_KEY   — console.neon.tech > Account > API Keys
+#
+# GitHub Actions is unlimited/free on a public repo, and SonarCloud's free tier
+# also requires the repo to be public.
+#
+# Dependency vulnerability scanning is handled by Dependabot (.github/dependabot.yml)
+# instead of Snyk/Safety — it's a native GitHub feature (free, no token, no signup)
+# and it opens the update PRs itself instead of just reporting findings.

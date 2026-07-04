@@ -1,0 +1,12 @@
+pandas==3.0.3
+numpy==1.26.4
+pyarrow==24.0.0
+matplotlib==3.11.0
+pdfplumber==0.11.4
+openai-whisper==20240930
+jieba==0.42.1
+opencc-python-reimplemented==0.1.7
+requests==2.34.2
+sqlalchemy==2.0.35
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1

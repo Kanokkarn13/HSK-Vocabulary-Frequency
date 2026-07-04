@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Sarabun", "Noto Sans SC", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Space Grotesk", "Sarabun", system-ui, sans-serif;
+  --font-zh: "Noto Serif SC", "Sarabun", serif;
+
+  /* brand: burgundy / wine red (酒红) — deep, muted red-violet. Distinct from Claude's
+     orange-clay, Supabase's green, and the common AI-tool blue/purple/indigo palette */
+  --color-brand-50: #fbf1f3;
+  --color-brand-100: #f6dde3;
+  --color-brand-200: #edbdc9;
+  --color-brand-300: #de92a5;
+  --color-brand-400: #c8607c;
+  --color-brand-500: #a83f5c;
+  --color-brand-600: #7d2740;
+  --color-brand-700: #641f34;
+  --color-brand-800: #521a2b;
+  --color-brand-900: #451825;
+
+  /* ink: warm neutral scale used everywhere instead of Tailwind's cool "slate" */
+  --color-ink-50: #f7f5f3;
+  --color-ink-100: #ede8e3;
+  --color-ink-200: #ded7cf;
+  --color-ink-300: #c9bfb4;
+  --color-ink-400: #a89c8e;
+  --color-ink-500: #877971;
+  --color-ink-600: #6b5f57;
+  --color-ink-700: #544a43;
+  --color-ink-800: #382f2a;
+  --color-ink-900: #23201d;
+  --color-ink-950: #100e0c;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: #faf8f6;
+  color: var(--color-ink-900);
+}
+
+.dark body {
+  background-color: var(--color-ink-950);
+  color: #eae6e1;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.font-zh {
+  font-family: var(--font-zh);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #ded7cf;
+  border-radius: 8px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #332e29;
+}

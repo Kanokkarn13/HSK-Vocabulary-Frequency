@@ -1,0 +1,4 @@
+{
+  "python.defaultInterpreterPath": "C:\\ml-env\\Scripts\\python.exe",
+  "jupyter.notebookFileRoot": "${workspaceRoot}"
+}
