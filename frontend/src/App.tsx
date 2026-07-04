@@ -66,12 +66,9 @@ export default function App() {
     topWords.status === "success"
       ? topWords.data.items.filter((r) => r.in_official_wordlist).length
       : null;
-  const avgExamCount =
-    topWords.status === "success" && topWords.data.items.length > 0
-      ? (
-          topWords.data.items.reduce((sum, r) => sum + r.exam_count, 0) /
-          topWords.data.items.length
-        ).toFixed(1)
+  const sumExamCount =
+    topWords.status === "success"
+      ? topWords.data.items.reduce((sum, r) => sum + r.exam_count, 0)
       : null;
   const notInHskCount =
     topWords.status === "success" ? topWords.data.items.length - officialCount! : null;
@@ -113,9 +110,9 @@ export default function App() {
             hint="ครั้งที่พบในข้อสอบทั้งหมด"
           />
           <StatCard
-            label="จำนวนข้อสอบเฉลี่ยที่เจอคำ"
-            value={avgExamCount != null ? `${avgExamCount} ชุด` : "—"}
-            hint="เฉลี่ยจากคำทั้งหมดในตัวกรองนี้"
+            label="จำนวนข้อสอบที่เจอคำรวม"
+            value={sumExamCount != null ? sumExamCount.toLocaleString() : "—"}
+            hint="รวมจากคำทั้งหมดในตัวกรองนี้"
             accent
           />
           <StatCard
