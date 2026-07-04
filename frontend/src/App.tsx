@@ -67,9 +67,12 @@ export default function App() {
     topWords.status === "success"
       ? topWords.data.items.filter((r) => r.in_official_wordlist).length
       : null;
-  const matchRate =
+  const avgExamCount =
     topWords.status === "success" && topWords.data.items.length > 0
-      ? Math.round((officialCount! / topWords.data.items.length) * 100)
+      ? (
+          topWords.data.items.reduce((sum, r) => sum + r.exam_count, 0) /
+          topWords.data.items.length
+        ).toFixed(1)
       : null;
   const notInHskCount =
     topWords.status === "success" ? topWords.data.items.length - officialCount! : null;
@@ -111,9 +114,9 @@ export default function App() {
             hint="ครั้งที่พบในข้อสอบทั้งหมด"
           />
           <StatCard
-            label="อัตราตรงกับ HSK"
-            value={matchRate != null ? `${matchRate}%` : "—"}
-            hint="สัดส่วนคำที่อยู่ใน wordlist"
+            label="จำนวนข้อสอบเฉลี่ยที่เจอคำ"
+            value={avgExamCount != null ? `${avgExamCount} ชุด` : "—"}
+            hint="เฉลี่ยจากคำทั้งหมดในตัวกรองนี้"
             accent
           />
           <StatCard
