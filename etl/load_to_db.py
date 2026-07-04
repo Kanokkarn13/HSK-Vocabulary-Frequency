@@ -40,16 +40,20 @@ def load_wordlist_csv(csv_path: str | Path, session: Session) -> set[str]:
                 continue
             session.execute(
                 text("""
-                    INSERT INTO hsk_wordlist (word, pinyin, hsk_level)
-                    VALUES (:word, :pinyin, :hsk_level)
+                    INSERT INTO hsk_wordlist (word, pinyin, hsk_level, definition, definition_th)
+                    VALUES (:word, :pinyin, :hsk_level, :definition, :definition_th)
                     ON CONFLICT (word) DO UPDATE SET
                         pinyin = EXCLUDED.pinyin,
-                        hsk_level = EXCLUDED.hsk_level
+                        hsk_level = EXCLUDED.hsk_level,
+                        definition = EXCLUDED.definition,
+                        definition_th = EXCLUDED.definition_th
                 """),
                 {
                     "word": word,
                     "pinyin": row.get("pinyin", "").strip(),
                     "hsk_level": hsk_level,
+                    "definition": (row.get("definition") or "").strip() or None,
+                    "definition_th": (row.get("definition_th") or "").strip() or None,
                 },
             )
             words.add(word)

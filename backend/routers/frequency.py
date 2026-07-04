@@ -36,7 +36,7 @@ def top_words(
 ):
     """Top N most frequent words, optionally filtered by word HSK level, exam-paper HSK level, one or more specific exams, and source type."""
     if exam_id:
-        return _top_words_live(db, exam_ids=exam_id, exam_level=None, hsk_level=hsk_level, source_type=None, limit=limit)
+        return _top_words_live(db, exam_ids=exam_id, exam_level=None, hsk_level=hsk_level, source_type=source_type, limit=limit)
 
     if exam_level is not None:
         return _top_words_live(db, exam_ids=None, exam_level=exam_level, hsk_level=hsk_level, source_type=source_type, limit=limit)
@@ -45,29 +45,31 @@ def top_words(
     params: dict = {"limit": limit}
 
     if hsk_level is not None:
-        conditions.append("hsk_level = :hsk_level")
+        conditions.append("fa.hsk_level = :hsk_level")
         params["hsk_level"] = hsk_level
 
     if source_type != "all":
-        conditions.append("source_type = :source_type")
+        conditions.append("fa.source_type = :source_type")
         params["source_type"] = source_type
     else:
-        conditions.append("source_type = 'all'")
+        conditions.append("fa.source_type = 'all'")
 
     where = " AND ".join(conditions)
     rows = db.execute(
         text(f"""
-            SELECT word, hsk_level, source_type, total_frequency, exam_count, in_official_wordlist
-            FROM frequency_aggregates
+            SELECT fa.word, fa.hsk_level, fa.source_type, fa.total_frequency,
+                   fa.exam_count, fa.in_official_wordlist, hw.pinyin
+            FROM frequency_aggregates fa
+            LEFT JOIN hsk_wordlist hw ON fa.word = hw.word
             WHERE {where}
-            ORDER BY total_frequency DESC
+            ORDER BY fa.total_frequency DESC
             LIMIT :limit
         """),
         params,
     ).mappings().all()
 
     total_count = db.execute(
-        text(f"SELECT COUNT(*) FROM frequency_aggregates WHERE {where}"),
+        text(f"SELECT COUNT(*) FROM frequency_aggregates fa WHERE {where}"),
         {k: v for k, v in params.items() if k != "limit"},
     ).scalar_one()
 
@@ -93,9 +95,10 @@ def _top_words_live(
     else:
         conditions.append("es.hsk_level = :exam_level")
         params["exam_level"] = exam_level
-        if source_type is not None and source_type != "all":
-            conditions.append("wf.source_type = :source_type")
-            params["source_type"] = source_type
+
+    if source_type is not None and source_type != "all":
+        conditions.append("wf.source_type = :source_type")
+        params["source_type"] = source_type
 
     if hsk_level is not None:
         conditions.append("wf.hsk_level = :hsk_level")
@@ -110,9 +113,11 @@ def _top_words_live(
                 CASE WHEN COUNT(DISTINCT wf.source_type) > 1 THEN 'all' ELSE MIN(wf.source_type) END AS source_type,
                 SUM(wf.frequency) AS total_frequency,
                 COUNT(DISTINCT wf.exam_id) AS exam_count,
-                BOOL_OR(wf.in_official_wordlist) AS in_official_wordlist
+                BOOL_OR(wf.in_official_wordlist) AS in_official_wordlist,
+                MAX(hw.pinyin) AS pinyin
             FROM word_frequencies wf
             JOIN exam_sources es ON wf.exam_id = es.exam_id AND wf.source_type = es.source_type
+            LEFT JOIN hsk_wordlist hw ON wf.word = hw.word
             WHERE {where}
             GROUP BY wf.word, wf.hsk_level
             ORDER BY total_frequency DESC

@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS hsk_wordlist (
     word VARCHAR(50) NOT NULL UNIQUE,
     pinyin VARCHAR(100),
     hsk_level SMALLINT NOT NULL CHECK (hsk_level BETWEEN 1 AND 9),
+    definition TEXT,
+    definition_th TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -42,6 +44,17 @@ CREATE TABLE IF NOT EXISTS frequency_aggregates (
     in_official_wordlist BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (word, source_type)
+);
+
+-- Sentences extracted from raw exam texts, for example-sentence lookup.
+CREATE TABLE IF NOT EXISTS exam_sentences (
+    id SERIAL PRIMARY KEY,
+    exam_id VARCHAR(100) NOT NULL,
+    source_type VARCHAR(20) NOT NULL CHECK (source_type IN ('reading', 'listening')),
+    sentence TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (exam_id, source_type, sentence),
+    FOREIGN KEY (exam_id, source_type) REFERENCES exam_sources(exam_id, source_type)
 );
 
 CREATE INDEX IF NOT EXISTS idx_wf_word ON word_frequencies(word);
