@@ -1,4 +1,5 @@
 import type { ExamRow, SourceType } from "../api/types";
+import { ExamMultiSelect } from "./ExamMultiSelect";
 
 interface FilterBarProps {
   hskLevel: number | null;
@@ -7,8 +8,8 @@ interface FilterBarProps {
   onSourceTypeChange: (type: SourceType) => void;
   examLevel: number | null;
   onExamLevelChange: (level: number | null) => void;
-  examId: string | null;
-  onExamIdChange: (examId: string | null) => void;
+  examIds: string[];
+  onExamIdsChange: (examIds: string[]) => void;
   exams: ExamRow[];
 }
 
@@ -25,13 +26,13 @@ export function FilterBar({
   onSourceTypeChange,
   examLevel,
   onExamLevelChange,
-  examId,
-  onExamIdChange,
+  examIds,
+  onExamIdsChange,
   exams,
 }: FilterBarProps) {
   const examLevels = [...new Set(exams.map((e) => e.hsk_level).filter((l): l is number => l != null))].sort();
   const examOptions = exams.filter((e) => examLevel == null || e.hsk_level === examLevel);
-  const isSingleExam = examId != null;
+  const isSingleExam = examIds.length > 0;
 
   return (
     <div className="space-y-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm dark:border-ink-800 dark:bg-ink-900">
@@ -104,7 +105,7 @@ export function FilterBar({
             <button
               onClick={() => {
                 onExamLevelChange(null);
-                onExamIdChange(null);
+                onExamIdsChange([]);
               }}
               className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
                 examLevel === null
@@ -119,7 +120,7 @@ export function FilterBar({
                 key={lvl}
                 onClick={() => {
                   onExamLevelChange(lvl);
-                  onExamIdChange(null);
+                  onExamIdsChange([]);
                 }}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
                   examLevel === lvl
@@ -137,18 +138,7 @@ export function FilterBar({
           <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-ink-400">
             ไฟล์ข้อสอบ
           </span>
-          <select
-            value={examId ?? ""}
-            onChange={(e) => onExamIdChange(e.target.value || null)}
-            className="rounded-lg border border-ink-200 bg-ink-50 px-3 py-1.5 text-sm outline-none ring-brand-500 transition focus:ring-2 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-100"
-          >
-            <option value="">ทุกข้อสอบ</option>
-            {examOptions.map((e) => (
-              <option key={e.exam_id} value={e.exam_id}>
-                {e.exam_id} (HSK {e.hsk_level})
-              </option>
-            ))}
-          </select>
+          <ExamMultiSelect exams={examOptions} selected={examIds} onChange={onExamIdsChange} />
         </div>
       </div>
     </div>

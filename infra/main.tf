@@ -66,6 +66,11 @@ resource "vercel_project" "app" {
   name      = "hsk-vocabulary-frequency"
   framework = "vite"
 
+  # Match Neon's region (aws-ap-southeast-1 / Singapore) -- Vercel's own
+  # default (iad1, US East) meant every DB connection paid ~1.5s+ of
+  # cross-Pacific round-trip latency on top of the query itself.
+  serverless_function_region = "sin1"
+
   git_repository = {
     type = "github"
     repo = var.github_repo
@@ -120,6 +125,20 @@ resource "vercel_project_environment_variable" "db_sslmode" {
   project_id = vercel_project.app.id
   key        = "DB_SSLMODE"
   value      = "require"
+  target     = ["production", "preview"]
+  sensitive  = false
+}
+
+# Vite bakes env vars into the built JS at build time (not runtime), so this
+# must be set before Vercel builds the frontend. Empty string, NOT "/api" --
+# frontend/src/api/client.ts already prefixes every call with "/api/...", and
+# without this var set at all, it falls back to "http://localhost:8000",
+# which is what shipped in the first production build (every API call tried
+# to reach the visitor's own machine instead of the deployed API).
+resource "vercel_project_environment_variable" "vite_api_base_url" {
+  project_id = vercel_project.app.id
+  key        = "VITE_API_BASE_URL"
+  value      = ""
   target     = ["production", "preview"]
   sensitive  = false
 }

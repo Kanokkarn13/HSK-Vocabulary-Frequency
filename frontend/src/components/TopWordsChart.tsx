@@ -36,7 +36,7 @@ export function TopWordsChart({ items }: { items: TopWordRow[] }) {
           <Tooltip
             formatter={(value, _name, entry) => [
               `${Number(value).toLocaleString()} ครั้ง`,
-              entry?.payload?.in_official_wordlist ? "อยู่ใน HSK wordlist" : "ไม่อยู่ใน HSK wordlist",
+              entry?.payload?.in_official_wordlist ? "อยู่ในคำศัพท์ HSK" : "ไม่อยู่ในคำศัพท์ HSK",
             ]}
             contentStyle={{
               borderRadius: 12,

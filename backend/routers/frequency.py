@@ -29,17 +29,17 @@ def list_exams(db: Session = Depends(get_db)):
 def top_words(
     hsk_level: int | None = Query(None, ge=1, le=9, description="Word's official HSK level (1-6)"),
     exam_level: int | None = Query(None, ge=1, le=9, description="HSK level of the exam paper itself (e.g. 3 or 4)"),
-    exam_id: str | None = Query(None, description="Filter to one specific exam; reading+listening are combined"),
+    exam_id: list[str] | None = Query(None, description="Filter to one or more specific exams (repeat the param); reading+listening are combined"),
     source_type: Literal["reading", "listening", "all"] = "all",
     limit: int = Query(50, ge=1, le=10000, description="Max rows to return; use a high value to fetch the full list"),
     db: Session = Depends(get_db),
 ):
-    """Top N most frequent words, optionally filtered by word HSK level, exam-paper HSK level, a specific exam, and source type."""
-    if exam_id is not None:
-        return _top_words_live(db, exam_id=exam_id, exam_level=None, hsk_level=hsk_level, source_type=None, limit=limit)
+    """Top N most frequent words, optionally filtered by word HSK level, exam-paper HSK level, one or more specific exams, and source type."""
+    if exam_id:
+        return _top_words_live(db, exam_ids=exam_id, exam_level=None, hsk_level=hsk_level, source_type=None, limit=limit)
 
     if exam_level is not None:
-        return _top_words_live(db, exam_id=None, exam_level=exam_level, hsk_level=hsk_level, source_type=source_type, limit=limit)
+        return _top_words_live(db, exam_ids=None, exam_level=exam_level, hsk_level=hsk_level, source_type=source_type, limit=limit)
 
     conditions = ["1=1"]
     params: dict = {"limit": limit}
@@ -76,7 +76,7 @@ def top_words(
 
 def _top_words_live(
     db: Session,
-    exam_id: str | None,
+    exam_ids: list[str] | None,
     exam_level: int | None,
     hsk_level: int | None,
     source_type: str | None,
@@ -87,9 +87,9 @@ def _top_words_live(
     conditions = []
     params: dict = {"limit": limit}
 
-    if exam_id is not None:
-        conditions.append("wf.exam_id = :exam_id")
-        params["exam_id"] = exam_id
+    if exam_ids:
+        conditions.append("wf.exam_id = ANY(:exam_ids)")
+        params["exam_ids"] = exam_ids
     else:
         conditions.append("es.hsk_level = :exam_level")
         params["exam_level"] = exam_level

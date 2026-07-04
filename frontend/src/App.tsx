@@ -3,7 +3,6 @@ import { fetchExams, fetchHealth, fetchTopWords } from "./api/client";
 import type { SourceType } from "./api/types";
 import { FilterBar } from "./components/FilterBar";
 import { Navbar } from "./components/Navbar";
-import { SearchPanel } from "./components/SearchPanel";
 import { StatCard } from "./components/StatCard";
 import { EmptyPanel, ErrorPanel, LoadingPanel } from "./components/StatusPanel";
 import { TopWordsChart } from "./components/TopWordsChart";
@@ -40,7 +39,7 @@ export default function App() {
   const [hskLevel, setHskLevel] = useState<number | null>(null);
   const [sourceType, setSourceType] = useState<SourceType>("all");
   const [examLevel, setExamLevel] = useState<number | null>(null);
-  const [examId, setExamId] = useState<string | null>(null);
+  const [examIds, setExamIds] = useState<string[]>([]);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -55,8 +54,8 @@ export default function App() {
   const exams = useAsync(() => fetchExams(), []);
 
   const topWords = useAsync(
-    () => fetchTopWords({ hskLevel, sourceType, examLevel, examId, limit: FULL_LIST_LIMIT }),
-    [hskLevel, sourceType, examLevel, examId],
+    () => fetchTopWords({ hskLevel, sourceType, examLevel, examIds, limit: FULL_LIST_LIMIT }),
+    [hskLevel, sourceType, examLevel, examIds],
   );
 
   const totalOccurrences =
@@ -67,9 +66,9 @@ export default function App() {
     topWords.status === "success"
       ? topWords.data.items.filter((r) => r.in_official_wordlist).length
       : null;
-  const matchRate =
+  const maxExamCount =
     topWords.status === "success" && topWords.data.items.length > 0
-      ? Math.round((officialCount! / topWords.data.items.length) * 100)
+      ? Math.max(...topWords.data.items.map((r) => r.exam_count))
       : null;
   const notInHskCount =
     topWords.status === "success" ? topWords.data.items.length - officialCount! : null;
@@ -94,8 +93,8 @@ export default function App() {
           onSourceTypeChange={setSourceType}
           examLevel={examLevel}
           onExamLevelChange={setExamLevel}
-          examId={examId}
-          onExamIdChange={setExamId}
+          examIds={examIds}
+          onExamIdsChange={setExamIds}
           exams={exams.status === "success" ? exams.data.items : []}
         />
 
@@ -111,15 +110,15 @@ export default function App() {
             hint="ครั้งที่พบในข้อสอบทั้งหมด"
           />
           <StatCard
-            label="อัตราตรงกับ HSK"
-            value={matchRate != null ? `${matchRate}%` : "—"}
-            hint="สัดส่วนคำที่อยู่ใน wordlist"
+            label="ชุดข้อสอบสูงสุดที่เจอคำเดียวกัน"
+            value={maxExamCount != null ? `${maxExamCount} ชุด` : "—"}
+            hint="คำที่พบในข้อสอบหลายชุดที่สุดในตัวกรองนี้"
             accent
           />
           <StatCard
             label="ไม่อยู่ใน HSK"
             value={notInHskCount != null ? notInHskCount.toLocaleString() : "—"}
-            hint="คำนอกเหนือ wordlist ทางการ"
+            hint="คำนอกเหนือคำศัพท์ HSK ทางการ"
           />
         </section>
 
@@ -135,8 +134,6 @@ export default function App() {
             ))}
         </section>
 
-        <SearchPanel />
-
         <section className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm dark:border-ink-800 dark:bg-ink-900">
           <SectionHeading eyebrow="รายละเอียด" title="ตารางคำศัพท์ทั้งหมด" />
           {topWords.status === "loading" && <LoadingPanel />}
@@ -151,7 +148,7 @@ export default function App() {
 
         <footer className="flex flex-col items-center gap-1 py-8 text-center text-xs text-ink-400 dark:text-ink-600">
           <span className="font-zh text-base text-ink-300 dark:text-ink-700">词汇 · 频率 · 分析</span>
-          <span>HSK Vocabulary Frequency Analyzer — Data Engineering portfolio project</span>
+          <span>HSK Vocabulary Frequency Analyzer — Data Engineering project</span>
         </footer>
       </main>
     </div>

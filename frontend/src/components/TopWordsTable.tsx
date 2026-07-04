@@ -4,7 +4,7 @@ import { HskBadge } from "./HskBadge";
 import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from "./icons";
 import { EmptyPanel } from "./StatusPanel";
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 10;
 
 function getPageNumbers(current: number, total: number): (number | "ellipsis")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
