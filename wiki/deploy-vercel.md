@@ -126,3 +126,18 @@ manual toggle needed; Vercel sets `VERCEL=1` for you.
 
 - No scheduled/batch job runs on Vercel for this project — reloading data
   after re-running the notebooks is always the manual step in §2.
+
+## Gotchas hit while getting this working
+
+- **Root `requirements.txt` must be self-contained.** Vercel's Python builder
+  (`uv pip install`) doesn't resolve a `-r requirements/api.txt` indirection
+  correctly — it ends up trying to build plain `psycopg2` from source (no
+  `pg_config` in that sandbox) instead of `psycopg2-binary`. The root
+  `requirements.txt` duplicates `requirements/api.txt`'s contents directly;
+  keep them in sync manually if you change API dependencies.
+- **`psycopg2-binary` needs a version with wheels for Vercel's current Python.**
+  Vercel's build ran Python 3.14 at time of writing; `psycopg2-binary==2.9.9`
+  has no cp314 wheel, so the build fell back to a source build (same
+  `pg_config` failure as above). Pinned to `2.9.12`, which ships cp313/cp314
+  wheels — bump again if Vercel moves to an even newer Python and the build
+  starts failing the same way.

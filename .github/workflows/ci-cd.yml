@@ -2,9 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 env:
   PYTHON_VERSION: "3.11"
@@ -21,7 +21,14 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: pip install -r requirements/api.txt -r requirements/etl.txt pytest pytest-cov
+        # openai-whisper's legacy setup.py needs pkg_resources at build time, which
+        # recent setuptools no longer bundles in a fresh isolated build env. Installing
+        # setuptools<81 first, then using --no-build-isolation for the rest, makes
+        # that pinned setuptools (already in this environment) the one whisper builds
+        # against instead of pip fetching an unconstrained latest into an ephemeral env.
+        run: |
+          pip install "setuptools<81"
+          pip install --no-build-isolation -r requirements/api.txt -r requirements/etl.txt pytest pytest-cov
 
       - name: Run tests
         run: pytest tests/ --cov=backend --cov=etl --cov-report=xml -v
@@ -45,7 +52,9 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: pip install -r requirements/api.txt -r requirements/etl.txt bandit pytest pytest-cov
+        run: |
+          pip install "setuptools<81"
+          pip install --no-build-isolation -r requirements/api.txt -r requirements/etl.txt bandit pytest pytest-cov
 
       - name: Bandit SAST scan
         run: bandit -r backend/ etl/ -f json -o bandit-report.json || true
@@ -91,24 +100,29 @@ jobs:
         run: |
           terraform plan \
             -var="vercel_api_token=${{ secrets.VERCEL_TOKEN }}" \
-            -var="neon_api_key=${{ secrets.NEON_API_KEY }}"
+            -var="neon_api_key=${{ secrets.NEON_API_KEY }}" \
+            -var="neon_org_id=${{ secrets.NEON_ORG_ID }}" \
+            -var="github_repo=Kanokkarn13/HSK-Vocabulary-Frequency"
 
-      - name: Terraform apply (main branch only)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: Terraform apply (master branch only)
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           terraform apply -auto-approve \
             -var="vercel_api_token=${{ secrets.VERCEL_TOKEN }}" \
-            -var="neon_api_key=${{ secrets.NEON_API_KEY }}"
+            -var="neon_api_key=${{ secrets.NEON_API_KEY }}" \
+            -var="neon_org_id=${{ secrets.NEON_ORG_ID }}" \
+            -var="github_repo=Kanokkarn13/HSK-Vocabulary-Frequency"
 
 # Deploy is intentionally NOT a job here: infra/main.tf's vercel_project resource
 # links the Vercel project to this GitHub repo (git_repository block), so Vercel's
 # own native integration handles it for free — a preview deployment per PR and a
-# production deployment on every push to main, with zero extra CI minutes spent.
+# production deployment on every push to master, with zero extra CI minutes spent.
 #
 # Required repo secrets (Settings > Secrets and variables > Actions):
 #   SONAR_TOKEN    — sonarcloud.io > My Account > Security
 #   VERCEL_TOKEN   — vercel.com account settings > Tokens
 #   NEON_API_KEY   — console.neon.tech > Account > API Keys
+#   NEON_ORG_ID    — console.neon.tech > Organization Settings > General
 #
 # GitHub Actions is unlimited/free on a public repo, and SonarCloud's free tier
 # also requires the repo to be public.

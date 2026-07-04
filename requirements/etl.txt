@@ -1,5 +1,11 @@
+# setuptools<81 pinned because openai-whisper's legacy setup.py needs
+# pkg_resources at build time, which newer setuptools dropped by default.
+setuptools<81
 pandas==3.0.3
-numpy==2.5.0
+# numpy>=2.5.0 requires Python >=3.12; this project (and CI) pins Python 3.11
+# everywhere, so pin numpy below that floor. Bump this only alongside a
+# Python version bump across backend/etl/CI, not independently.
+numpy==2.3.5
 pyarrow==24.0.0
 matplotlib==3.11.0
 pdfplumber==0.11.4
@@ -8,5 +14,5 @@ jieba==0.42.1
 opencc-python-reimplemented==0.1.7
 requests==2.34.2
 sqlalchemy==2.0.35
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.12
 python-dotenv==1.0.1

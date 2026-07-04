@@ -37,6 +37,11 @@ variable "github_repo" {
   type        = string
 }
 
+variable "neon_org_id" {
+  description = "Neon organization ID (console.neon.tech > Organization Settings > General) — required by the API even for a personal account"
+  type        = string
+}
+
 provider "vercel" {
   api_token = var.vercel_api_token
 }
@@ -50,6 +55,10 @@ resource "neon_project" "db" {
   name       = "hsk-frequency-${var.env}"
   region_id  = "aws-ap-southeast-1"
   pg_version = 16
+  org_id     = var.neon_org_id
+  # Free-tier accounts cap point-in-time-restore history at 6h (21600s);
+  # the provider's default (24h) exceeds that and gets rejected.
+  history_retention_seconds = 21600
 }
 
 # --- Vercel: free Hobby-tier project hosting frontend + FastAPI serverless function ---
@@ -80,6 +89,7 @@ resource "vercel_project_environment_variable" "db_host" {
   key        = "DB_HOST"
   value      = local.db_host
   target     = ["production", "preview"]
+  sensitive  = false
 }
 
 resource "vercel_project_environment_variable" "db_user" {
@@ -87,6 +97,7 @@ resource "vercel_project_environment_variable" "db_user" {
   key        = "DB_USER"
   value      = local.db_user
   target     = ["production", "preview"]
+  sensitive  = false
 }
 
 resource "vercel_project_environment_variable" "db_password" {
@@ -102,6 +113,7 @@ resource "vercel_project_environment_variable" "db_name" {
   key        = "DB_NAME"
   value      = local.db_name
   target     = ["production", "preview"]
+  sensitive  = false
 }
 
 resource "vercel_project_environment_variable" "db_sslmode" {
@@ -109,6 +121,7 @@ resource "vercel_project_environment_variable" "db_sslmode" {
   key        = "DB_SSLMODE"
   value      = "require"
   target     = ["production", "preview"]
+  sensitive  = false
 }
 
 output "vercel_project_url" {

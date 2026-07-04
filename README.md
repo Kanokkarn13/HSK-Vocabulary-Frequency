@@ -238,7 +238,7 @@ Dashboard available at: `http://localhost:5173`
 | `GET /api/compare/wordlist-vs-actual` | Words in exams NOT in official wordlist, and official words ranked by exam frequency. Not currently used by the frontend (see [wiki/frontend.md](wiki/frontend.md)), kept as a standalone API capability |
 | `GET /health` | Health check |
 
-CORS is restricted to origins listed in the `CORS_ALLOW_ORIGINS` env var (defaults to `http://localhost:5173`).
+CORS is restricted to origins listed in the `CORS_ALLOW_ORIGINS` env var (defaults to `http://localhost:5173`). The API also rate-limits to 60 req/min per IP and blocks requests with no/known-scraper User-Agent strings (`backend/main.py`) — best-effort, in-memory deterrents against casual scraping, not a hard guarantee. `frontend/public/robots.txt` disallows crawling `/api/*`.
 
 Full parameter docs: `http://localhost:8000/docs`
 
@@ -262,7 +262,7 @@ pytest tests/ -v
 | 3 — ETL Core | ✅ Complete | `02_segment_and_count.ipynb` — jieba + HSK labeling + fallback decomposition (numerals, verbs, pronouns, measure words, aspect particles, ...) + CC-CEDICT cross-check → `word_counts.parquet` (102,315 rows, **95.5%** of occurrences / 61.2% of unique words matched to an HSK level) |
 | 4 — API | ✅ Complete | 4 FastAPI endpoints backed by a real Postgres database (`etl/load_word_counts.py` loads 7,587 words / 130 exams / 102,315 frequency rows), verified end-to-end from the frontend |
 | 5 — Frontend | ✅ Complete | React + Vite + TypeScript + Tailwind dashboard — filters (word HSK level, exam-paper level, specific exam, source type), top-15 chart, searchable/paginated full word table, word lookup panel, dark mode, error boundary. See [wiki/frontend.md](wiki/frontend.md) |
-| 6 — DevSecOps | ✅ Scaffolded | Docker (local dev), GitHub Actions (Test → Security → IaC), Terraform (Vercel + Neon), Dependabot, SonarCloud, UptimeRobot |
+| 6 — DevSecOps | 🟡 In progress | Docker (local dev only), GitHub Actions (Test → Security → IaC), Terraform (Vercel + Neon — project provisioned, schema + data loaded into Neon), Dependabot, SonarCloud. Pipeline being finalized in [PR #13](https://github.com/Kanokkarn13/HSK-Vocabulary-Frequency/pull/13); UptimeRobot monitor not yet configured |
 | 7 — Portfolio | 🔲 Not started | Architecture diagram, demo video |
 
 ---
@@ -281,8 +281,14 @@ Single target, entirely free tier: **Vercel** (serverless Python function,
 native ASGI, no adapter needed + static frontend, same project) backed by
 **Neon** (serverless Postgres). Provisioned via Terraform in
 [`infra/main.tf`](infra/main.tf); once linked, Vercel's own GitHub
-integration auto-deploys on every push to `main` (and a preview build per PR)
+integration auto-deploys on every push to `master` (and a preview build per PR)
 with no extra CI stage needed.
+
+**Current status:** the Neon project and Vercel project both exist (created
+via `terraform apply`), the schema is applied, and all 130 exams'
+word-frequency data is loaded into Neon. Changes land through a PR into
+`master` rather than a direct push, so both the GitHub Actions pipeline and
+Vercel's preview deploy run against every change before it's live.
 
 See [Deploying to Vercel + Neon](wiki/deploy-vercel.md) for full setup steps
 and [DevSecOps Pipeline](wiki/devsecops.md) for the CI/CD + IaC pipeline.

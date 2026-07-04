@@ -41,11 +41,12 @@ data/processed/hsk_word_level_lookup.csv
 # Third-party reference data (downloaded on demand by notebooks, not ours to redistribute)
 data/external/
 
-# Terraform state
+# Terraform state + local variable files (contain secrets/DB passwords)
 infra/.terraform/
 infra/*.tfstate
 infra/*.tfstate.backup
 infra/.terraform.lock.hcl
+infra/*.tfvars
 
 # Docker
 *.tar
