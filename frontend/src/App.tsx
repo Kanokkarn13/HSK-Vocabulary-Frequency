@@ -151,7 +151,7 @@ export default function App() {
 
         <footer className="flex flex-col items-center gap-1 py-8 text-center text-xs text-ink-400 dark:text-ink-600">
           <span className="font-zh text-base text-ink-300 dark:text-ink-700">词汇 · 频率 · 分析</span>
-          <span>HSK Vocabulary Frequency Analyzer — Data Engineering portfolio project</span>
+          <span>HSK Vocabulary Frequency Analyzer — Data Engineering project</span>
         </footer>
       </main>
     </div>
