@@ -28,7 +28,7 @@ jobs:
         # against instead of pip fetching an unconstrained latest into an ephemeral env.
         run: |
           pip install "setuptools<81"
-          pip install --no-build-isolation -r requirements/api.txt -r requirements/etl.txt pytest pytest-cov
+          pip install --no-build-isolation -r requirements/api.txt -r requirements/etl.txt pytest pytest-cov httpx
 
       - name: Run tests
         run: pytest tests/ --cov=backend --cov=etl --cov-report=xml -v
@@ -54,7 +54,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install "setuptools<81"
-          pip install --no-build-isolation -r requirements/api.txt -r requirements/etl.txt bandit pytest pytest-cov
+          pip install --no-build-isolation -r requirements/api.txt -r requirements/etl.txt bandit pytest pytest-cov httpx
 
       - name: Bandit SAST scan
         run: bandit -r backend/ etl/ -f json -o bandit-report.json || true

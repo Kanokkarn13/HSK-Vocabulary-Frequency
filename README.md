@@ -247,7 +247,7 @@ Full parameter docs: `http://localhost:8000/docs`
 ## Running Tests
 
 ```bash
-pip install -r requirements/api.txt -r requirements/etl.txt pytest
+pip install -r requirements/api.txt -r requirements/etl.txt pytest httpx
 pytest tests/ -v
 ```
 
