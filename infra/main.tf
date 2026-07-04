@@ -89,6 +89,7 @@ resource "vercel_project_environment_variable" "db_host" {
   key        = "DB_HOST"
   value      = local.db_host
   target     = ["production", "preview"]
+  sensitive  = false
 }
 
 resource "vercel_project_environment_variable" "db_user" {
@@ -96,6 +97,7 @@ resource "vercel_project_environment_variable" "db_user" {
   key        = "DB_USER"
   value      = local.db_user
   target     = ["production", "preview"]
+  sensitive  = false
 }
 
 resource "vercel_project_environment_variable" "db_password" {
@@ -111,6 +113,7 @@ resource "vercel_project_environment_variable" "db_name" {
   key        = "DB_NAME"
   value      = local.db_name
   target     = ["production", "preview"]
+  sensitive  = false
 }
 
 resource "vercel_project_environment_variable" "db_sslmode" {
@@ -118,6 +121,7 @@ resource "vercel_project_environment_variable" "db_sslmode" {
   key        = "DB_SSLMODE"
   value      = "require"
   target     = ["production", "preview"]
+  sensitive  = false
 }
 
 output "vercel_project_url" {
