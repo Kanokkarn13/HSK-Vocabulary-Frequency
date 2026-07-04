@@ -77,27 +77,26 @@ def word_detail(
         {"pattern": pattern},
     ).mappings().one()
 
-    # DISTINCT ON collapses the same sentence text reused across files (HSK
-    # recycles some items) to a single source before spreading picks per file.
+    # Inner DISTINCT ON collapses the same sentence text reused across files
+    # (HSK recycles some items) to a single source; outer DISTINCT ON then
+    # picks one representative sentence per remaining file, closest to 20
+    # characters (reads best as a standalone example).
     sentences = db.execute(
         text("""
             SELECT s.sentence, s.exam_id, s.source_type, es.filename, es.hsk_level AS exam_hsk_level
             FROM (
-                SELECT sentence, exam_id, source_type,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY exam_id, source_type
-                           ORDER BY ABS(LENGTH(sentence) - 20)
-                       ) AS rn
+                SELECT DISTINCT ON (exam_id, source_type) sentence, exam_id, source_type
                 FROM (
                     SELECT DISTINCT ON (sentence) sentence, exam_id, source_type
                     FROM exam_sentences
                     WHERE sentence LIKE :pattern
                     ORDER BY sentence, exam_id, source_type
                 ) dedup
+                ORDER BY exam_id, source_type, ABS(LENGTH(sentence) - 20)
             ) s
             JOIN exam_sources es
                 ON s.exam_id = es.exam_id AND s.source_type = es.source_type
-            ORDER BY s.rn, ABS(LENGTH(s.sentence) - 20)
+            ORDER BY ABS(LENGTH(s.sentence) - 20)
             LIMIT :limit
         """),
         {"pattern": pattern, "limit": MAX_EXAMPLE_SENTENCES},

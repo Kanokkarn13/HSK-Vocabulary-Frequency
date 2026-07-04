@@ -39,6 +39,17 @@ export function TopWordsTable({ items }: { items: TopWordRow[] }) {
 
   const matchedItems = useMemo(() => items.filter((row) => row.hsk_level != null), [items]);
 
+  // Normalizing pinyin involves Unicode decomposition + regex passes; doing
+  // it once per row here (keyed on the dataset) instead of inside the filter
+  // below avoids repeating that work for every row on every keystroke.
+  const normalizedPinyinByWord = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of matchedItems) {
+      if (row.pinyin != null) map.set(row.word, normalizePinyin(row.pinyin));
+    }
+    return map;
+  }, [matchedItems]);
+
   const filtered = useMemo(() => {
     const q = query.trim();
     if (!q) return matchedItems;
@@ -46,9 +57,9 @@ export function TopWordsTable({ items }: { items: TopWordRow[] }) {
     return matchedItems.filter(
       (row) =>
         row.word.includes(q) ||
-        (qPinyin.length > 0 && row.pinyin != null && normalizePinyin(row.pinyin).includes(qPinyin)),
+        (qPinyin.length > 0 && (normalizedPinyinByWord.get(row.word) ?? "").includes(qPinyin)),
     );
-  }, [matchedItems, query]);
+  }, [matchedItems, normalizedPinyinByWord, query]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);

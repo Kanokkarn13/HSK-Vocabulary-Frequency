@@ -66,7 +66,11 @@ export default function App() {
       if (e.key === "Escape") setFilterSheetOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
   }, [filterSheetOpen]);
 
   const activeFilterCount =
@@ -85,6 +89,21 @@ export default function App() {
   }, []);
 
   const exams = useAsync(() => fetchExams(), []);
+
+  // FilterBar is rendered twice (inline + inside the filter sheet below) so
+  // the same controls are reachable whether or not the inline bar is
+  // scrolled into view — shared here so the two call sites can't drift.
+  const filterBarProps = {
+    hskLevel,
+    onHskLevelChange: setHskLevel,
+    sourceType,
+    onSourceTypeChange: setSourceType,
+    examLevel,
+    onExamLevelChange: setExamLevel,
+    examIds,
+    onExamIdsChange: setExamIds,
+    exams: exams.status === "success" ? exams.data.items : [],
+  };
 
   const topWords = useAsync(
     () => fetchTopWords({ hskLevel, sourceType, examLevel, examIds, limit: FULL_LIST_LIMIT }),
@@ -120,17 +139,7 @@ export default function App() {
         )}
 
         <div ref={filterBarRef}>
-          <FilterBar
-            hskLevel={hskLevel}
-            onHskLevelChange={setHskLevel}
-            sourceType={sourceType}
-            onSourceTypeChange={setSourceType}
-            examLevel={examLevel}
-            onExamLevelChange={setExamLevel}
-            examIds={examIds}
-            onExamIdsChange={setExamIds}
-            exams={exams.status === "success" ? exams.data.items : []}
-          />
+          <FilterBar {...filterBarProps} />
         </div>
 
         <section className="grid grid-cols-2 divide-y divide-ink-200 overflow-hidden rounded-2xl border border-ink-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0 dark:divide-ink-800 dark:border-ink-800 dark:bg-ink-900">
@@ -234,17 +243,7 @@ export default function App() {
                 <XIcon className="h-4 w-4" />
               </button>
             </div>
-            <FilterBar
-              hskLevel={hskLevel}
-              onHskLevelChange={setHskLevel}
-              sourceType={sourceType}
-              onSourceTypeChange={setSourceType}
-              examLevel={examLevel}
-              onExamLevelChange={setExamLevel}
-              examIds={examIds}
-              onExamIdsChange={setExamIds}
-              exams={exams.status === "success" ? exams.data.items : []}
-            />
+            <FilterBar {...filterBarProps} />
             <button
               onClick={() => setFilterSheetOpen(false)}
               className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"

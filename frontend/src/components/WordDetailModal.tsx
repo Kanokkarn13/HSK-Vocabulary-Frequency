@@ -3,23 +3,8 @@ import { fetchWordDetail } from "../api/client";
 import type { ExampleSentence } from "../api/types";
 import { useAsync } from "../hooks/useAsync";
 import { HskBadge } from "./HskBadge";
+import { XIcon } from "./icons";
 import { ErrorPanel, LoadingPanel } from "./StatusPanel";
-
-function CloseIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  );
-}
 
 /** Render a sentence with every occurrence of `word` highlighted. */
 function HighlightedSentence({ sentence, word }: { sentence: string; word: string }) {
@@ -119,7 +104,7 @@ export function WordDetailModal({ word, onClose }: { word: string; onClose: () =
             aria-label="ปิด"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-600 dark:hover:bg-ink-800 dark:hover:text-ink-300"
           >
-            <CloseIcon className="h-4 w-4" />
+            <XIcon className="h-4 w-4" />
           </button>
         </div>
 
