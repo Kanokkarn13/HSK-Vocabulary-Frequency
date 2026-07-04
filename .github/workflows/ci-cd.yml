@@ -26,7 +26,7 @@ jobs:
       - name: Run tests
         run: pytest tests/ --cov=backend --cov=etl --cov-report=xml -v
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage.xml
@@ -50,7 +50,7 @@ jobs:
       - name: Bandit SAST scan
         run: bandit -r backend/ etl/ -f json -o bandit-report.json || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: security-reports
           path: bandit-report.json
