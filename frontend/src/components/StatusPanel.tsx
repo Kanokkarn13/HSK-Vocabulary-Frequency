@@ -7,7 +7,7 @@ const LOADING_CHARS = [
 
 export function LoadingPanel({ label = "กำลังโหลดข้อมูล..." }: { label?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-5 overflow-hidden rounded-3xl bg-gradient-to-b from-brand-50 to-white py-16 text-ink-400 dark:from-brand-500/10 dark:to-ink-900/40">
+    <div className="flex flex-col items-center justify-center gap-5 py-16 text-ink-400">
       <div className="flex gap-3" aria-hidden="true">
         {LOADING_CHARS.map((item, i) => (
           <div key={item.char} className="flex flex-col items-center gap-1">
