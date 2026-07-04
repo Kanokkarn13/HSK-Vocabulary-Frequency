@@ -37,6 +37,11 @@ variable "github_repo" {
   type        = string
 }
 
+variable "neon_org_id" {
+  description = "Neon organization ID (console.neon.tech > Organization Settings > General) — required by the API even for a personal account"
+  type        = string
+}
+
 provider "vercel" {
   api_token = var.vercel_api_token
 }
@@ -50,6 +55,10 @@ resource "neon_project" "db" {
   name       = "hsk-frequency-${var.env}"
   region_id  = "aws-ap-southeast-1"
   pg_version = 16
+  org_id     = var.neon_org_id
+  # Free-tier accounts cap point-in-time-restore history at 6h (21600s);
+  # the provider's default (24h) exceeds that and gets rejected.
+  history_retention_seconds = 21600
 }
 
 # --- Vercel: free Hobby-tier project hosting frontend + FastAPI serverless function ---

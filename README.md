@@ -238,7 +238,7 @@ Dashboard available at: `http://localhost:5173`
 | `GET /api/compare/wordlist-vs-actual` | Words in exams NOT in official wordlist, and official words ranked by exam frequency. Not currently used by the frontend (see [wiki/frontend.md](wiki/frontend.md)), kept as a standalone API capability |
 | `GET /health` | Health check |
 
-CORS is restricted to origins listed in the `CORS_ALLOW_ORIGINS` env var (defaults to `http://localhost:5173`).
+CORS is restricted to origins listed in the `CORS_ALLOW_ORIGINS` env var (defaults to `http://localhost:5173`). The API also rate-limits to 60 req/min per IP and blocks requests with no/known-scraper User-Agent strings (`backend/main.py`) — best-effort, in-memory deterrents against casual scraping, not a hard guarantee. `frontend/public/robots.txt` disallows crawling `/api/*`.
 
 Full parameter docs: `http://localhost:8000/docs`
 
@@ -281,7 +281,7 @@ Single target, entirely free tier: **Vercel** (serverless Python function,
 native ASGI, no adapter needed + static frontend, same project) backed by
 **Neon** (serverless Postgres). Provisioned via Terraform in
 [`infra/main.tf`](infra/main.tf); once linked, Vercel's own GitHub
-integration auto-deploys on every push to `main` (and a preview build per PR)
+integration auto-deploys on every push to `master` (and a preview build per PR)
 with no extra CI stage needed.
 
 See [Deploying to Vercel + Neon](wiki/deploy-vercel.md) for full setup steps

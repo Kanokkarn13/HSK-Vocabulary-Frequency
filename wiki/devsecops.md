@@ -25,7 +25,7 @@ Push to main/develop, or PR to main
        │ (on success)
        ▼
 ┌─────────────┐
-│  Terraform  │  fmt/validate/plan on every run; apply only on push to main
+│  Terraform  │  fmt/validate/plan on every run; apply only on push to master
 └─────────────┘
 
 Deploy is NOT a job in this workflow — see "Deployment" below.
@@ -105,20 +105,23 @@ variables → Actions):
 |---|---|
 | `VERCEL_TOKEN` | vercel.com → Account Settings → Tokens |
 | `NEON_API_KEY` | console.neon.tech → Account → API Keys |
+| `NEON_ORG_ID` | console.neon.tech → Organization Settings → General (required by Neon's API even for a personal account) |
 | `SONAR_TOKEN` | sonarcloud.io → My Account → Security |
 
-Run locally the same way the pipeline does:
+Run locally the same way the pipeline does (from `infra/terraform.tfvars`,
+gitignored — see `infra/terraform.tfvars.example` for the format):
 
 ```bash
 cd infra
 terraform init
-terraform plan \
-  -var="vercel_api_token=$VERCEL_TOKEN" \
-  -var="neon_api_key=$NEON_API_KEY" \
-  -var="github_repo=yourname/HSK-Vocabulary-Frequency"
+terraform plan
 ```
 
-Only `terraform apply` on merges to `main` in CI — don't apply from a feature
+Note: Neon rejects the provider's default 24h history-retention window on
+free-tier accounts (max is 6h) — `infra/main.tf` sets
+`history_retention_seconds = 21600` explicitly to stay within that.
+
+Only `terraform apply` on merges to `master` in CI — don't apply from a feature
 branch, since the plan is meant to represent what's actually live.
 
 ---
@@ -127,7 +130,7 @@ branch, since the plan is meant to represent what's actually live.
 
 No explicit deploy job. Once `infra/main.tf`'s `vercel_project.git_repository`
 points at this repo, Vercel's own GitHub integration takes over: a preview
-deployment per PR, a production deployment on every push to `main` — free,
+deployment per PR, a production deployment on every push to `master` — free,
 automatic, and zero extra GitHub Actions minutes spent on it. See
 [Deploying to Vercel + Neon](deploy-vercel.md) for the manual first-time setup
 and the data-loading steps Terraform doesn't cover.

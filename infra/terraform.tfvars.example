@@ -1,0 +1,4 @@
+vercel_api_token = "your-vercel-token"
+neon_api_key     = "your-neon-api-key"
+github_repo      = "Kanokkarn13/HSK-Vocabulary-Frequency"
+neon_org_id      = "your-neon-org-id"
