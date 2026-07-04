@@ -1,7 +1,19 @@
+const LOADING_CHARS = ["学", "习", "汉", "语"];
+
 export function LoadingPanel({ label = "กำลังโหลดข้อมูล..." }: { label?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-ink-200 bg-white/60 py-16 text-ink-400 dark:border-ink-800 dark:bg-ink-900/40">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-ink-200 bg-white/60 py-16 text-ink-400 dark:border-ink-800 dark:bg-ink-900/40">
+      <div className="flex gap-2 text-4xl font-bold" aria-hidden="true">
+        {LOADING_CHARS.map((char, i) => (
+          <span
+            key={char}
+            className="inline-block animate-bounce text-brand-500"
+            style={{ animationDelay: `${i * 120}ms` }}
+          >
+            {char}
+          </span>
+        ))}
+      </div>
       <p className="text-sm">{label}</p>
     </div>
   );
