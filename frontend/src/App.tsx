@@ -66,9 +66,9 @@ export default function App() {
     topWords.status === "success"
       ? topWords.data.items.filter((r) => r.in_official_wordlist).length
       : null;
-  const sumExamCount =
-    topWords.status === "success"
-      ? topWords.data.items.reduce((sum, r) => sum + r.exam_count, 0)
+  const maxExamCount =
+    topWords.status === "success" && topWords.data.items.length > 0
+      ? Math.max(...topWords.data.items.map((r) => r.exam_count))
       : null;
   const notInHskCount =
     topWords.status === "success" ? topWords.data.items.length - officialCount! : null;
@@ -110,9 +110,9 @@ export default function App() {
             hint="ครั้งที่พบในข้อสอบทั้งหมด"
           />
           <StatCard
-            label="จำนวนข้อสอบที่เจอคำรวม"
-            value={sumExamCount != null ? sumExamCount.toLocaleString() : "—"}
-            hint="รวมจากคำทั้งหมดในตัวกรองนี้"
+            label="ชุดข้อสอบสูงสุดที่เจอคำเดียวกัน"
+            value={maxExamCount != null ? `${maxExamCount} ชุด` : "—"}
+            hint="คำที่พบในข้อสอบหลายชุดที่สุดในตัวกรองนี้"
             accent
           />
           <StatCard
