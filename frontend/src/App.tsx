@@ -39,7 +39,7 @@ export default function App() {
   const [hskLevel, setHskLevel] = useState<number | null>(null);
   const [sourceType, setSourceType] = useState<SourceType>("all");
   const [examLevel, setExamLevel] = useState<number | null>(null);
-  const [examId, setExamId] = useState<string | null>(null);
+  const [examIds, setExamIds] = useState<string[]>([]);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -54,8 +54,8 @@ export default function App() {
   const exams = useAsync(() => fetchExams(), []);
 
   const topWords = useAsync(
-    () => fetchTopWords({ hskLevel, sourceType, examLevel, examId, limit: FULL_LIST_LIMIT }),
-    [hskLevel, sourceType, examLevel, examId],
+    () => fetchTopWords({ hskLevel, sourceType, examLevel, examIds, limit: FULL_LIST_LIMIT }),
+    [hskLevel, sourceType, examLevel, examIds],
   );
 
   const totalOccurrences =
@@ -93,8 +93,8 @@ export default function App() {
           onSourceTypeChange={setSourceType}
           examLevel={examLevel}
           onExamLevelChange={setExamLevel}
-          examId={examId}
-          onExamIdChange={setExamId}
+          examIds={examIds}
+          onExamIdsChange={setExamIds}
           exams={exams.status === "success" ? exams.data.items : []}
         />
 

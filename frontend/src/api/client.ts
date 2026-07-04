@@ -9,7 +9,13 @@ import type {
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-const client = axios.create({ baseURL: API_BASE_URL, timeout: 10_000 });
+const client = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10_000,
+  // FastAPI's list[str] query params expect repeated "key=a&key=b", not
+  // axios's default bracket notation "key[]=a&key[]=b".
+  paramsSerializer: { indexes: null },
+});
 
 export async function fetchHealth(): Promise<{ status: string }> {
   const { data } = await client.get("/health");
@@ -25,7 +31,7 @@ interface ScopeParams {
   hskLevel?: number | null;
   sourceType: SourceType;
   examLevel?: number | null;
-  examId?: string | null;
+  examIds?: string[];
   limit?: number;
 }
 
@@ -35,7 +41,7 @@ export async function fetchTopWords(params: ScopeParams): Promise<TopWordsRespon
       hsk_level: params.hskLevel ?? undefined,
       source_type: params.sourceType,
       exam_level: params.examLevel ?? undefined,
-      exam_id: params.examId ?? undefined,
+      exam_id: params.examIds?.length ? params.examIds : undefined,
       limit: params.limit ?? 50,
     },
   });
