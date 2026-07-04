@@ -21,7 +21,14 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: pip install -r requirements/api.txt -r requirements/etl.txt pytest pytest-cov
+        # openai-whisper's legacy setup.py needs pkg_resources at build time, which
+        # recent setuptools no longer bundles in a fresh isolated build env. Installing
+        # setuptools<81 first, then using --no-build-isolation for the rest, makes
+        # that pinned setuptools (already in this environment) the one whisper builds
+        # against instead of pip fetching an unconstrained latest into an ephemeral env.
+        run: |
+          pip install "setuptools<81"
+          pip install --no-build-isolation -r requirements/api.txt -r requirements/etl.txt pytest pytest-cov
 
       - name: Run tests
         run: pytest tests/ --cov=backend --cov=etl --cov-report=xml -v
@@ -45,7 +52,9 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: pip install -r requirements/api.txt -r requirements/etl.txt bandit pytest pytest-cov
+        run: |
+          pip install "setuptools<81"
+          pip install --no-build-isolation -r requirements/api.txt -r requirements/etl.txt bandit pytest pytest-cov
 
       - name: Bandit SAST scan
         run: bandit -r backend/ etl/ -f json -o bandit-report.json || true

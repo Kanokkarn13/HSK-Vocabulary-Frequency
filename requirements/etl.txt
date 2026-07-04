@@ -1,9 +1,12 @@
+# setuptools<81 pinned because openai-whisper's legacy setup.py needs
+# pkg_resources at build time, which newer setuptools dropped by default.
+setuptools<81
 pandas==3.0.3
 numpy==1.26.4
 pyarrow==24.0.0
 matplotlib==3.11.0
 pdfplumber==0.11.4
-openai-whisper==20240930
+openai-whisper==20250625
 jieba==0.42.1
 opencc-python-reimplemented==0.1.7
 requests==2.34.2
