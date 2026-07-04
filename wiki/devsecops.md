@@ -25,14 +25,14 @@ Push to master/develop, or PR to master
        │ (on success)
        ▼
 ┌─────────────┐
-│  Terraform  │  fmt/validate/plan on every run; apply only on push to master
+│  Terraform  │  fmt + validate only (syntax-level, no state needed)
 └─────────────┘
 
 Deploy is NOT a job in this workflow — see "Deployment" below.
 ```
 
-PRs run Test + Security + `terraform plan` (no `apply`, no deploy) — this is the
-review gate. Merging to `master` runs the same stages and then `terraform apply`.
+PRs and pushes to `master` run the same three stages. `terraform plan`/`apply`
+are **not** run in CI at all — see the IaC section below for why.
 
 ---
 
@@ -107,31 +107,48 @@ the repo root with your `sonar.organization` / `sonar.projectKey`.
   (`DB_HOST`/`DB_USER`/`DB_PASSWORD`/`DB_NAME`/`DB_SSLMODE`) wired from the
   Neon outputs straight into Vercel's project environment variables.
 
-Required repo secrets for the `terraform` job (Settings → Secrets and
-variables → Actions):
-
-| Secret | Where to get it |
-|---|---|
-| `VERCEL_TOKEN` | vercel.com → Account Settings → Tokens |
-| `NEON_API_KEY` | console.neon.tech → Account → API Keys |
-| `NEON_ORG_ID` | console.neon.tech → Organization Settings → General (required by Neon's API even for a personal account) |
-| `SONAR_TOKEN` | sonarcloud.io → My Account → Security |
-
-Run locally the same way the pipeline does (from `infra/terraform.tfvars`,
-gitignored — see `infra/terraform.tfvars.example` for the format):
+**State is local-only.** There's no remote backend configured — `infra/main.tf`
+has no `backend` block, so `terraform apply` writes to
+`infra/terraform.tfstate` on whatever machine runs it, and that file is
+gitignored (it contains the Neon DB password in plaintext). That means
+`plan`/`apply` only run **locally**, by hand, from `infra/terraform.tfvars`
+(also gitignored — see `infra/terraform.tfvars.example` for the format):
 
 ```bash
 cd infra
 terraform init
 terraform plan
+terraform apply
 ```
+
+CI only runs `terraform fmt -check` and `terraform validate` — both are
+syntax/schema checks that need no state and no provider credentials at all.
+CI does **not** run `plan` or `apply`. The first version of this pipeline did
+run `apply` automatically on every push to `master`, but since a CI runner
+has no access to the local state file, that apply always started from a
+blank slate and tried to recreate the Neon/Vercel projects that already
+existed — failing with "already exists" conflicts. A shared remote backend
+(e.g. Terraform Cloud's free tier) would fix that properly if this project
+ever needs a second operator or a CI-driven apply; for a single-person
+portfolio project where infra changes are rare, local-only apply is simpler
+and was the right call.
+
+Required secrets for running Terraform locally (not GitHub secrets — just
+values you paste into `infra/terraform.tfvars`):
+
+| Value | Where to get it |
+|---|---|
+| `vercel_api_token` | vercel.com → Account Settings → Tokens |
+| `neon_api_key` | console.neon.tech → Account → API Keys |
+| `neon_org_id` | console.neon.tech → Organization Settings → General (required by Neon's API even for a personal account) |
 
 Note: Neon rejects the provider's default 24h history-retention window on
 free-tier accounts (max is 6h) — `infra/main.tf` sets
 `history_retention_seconds = 21600` explicitly to stay within that.
 
-Only `terraform apply` on merges to `master` in CI — don't apply from a feature
-branch, since the plan is meant to represent what's actually live.
+**Watch Dependabot's `terraform` PRs before merging one that touches
+`infra/main.tf` provider constraints** — see the Dependabot section above for
+the vercel provider major-version break we hit.
 
 ---
 

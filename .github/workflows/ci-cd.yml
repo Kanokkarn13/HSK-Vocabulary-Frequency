@@ -74,7 +74,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   terraform:
-    name: IaC Plan/Apply (Vercel + Neon)
+    name: IaC Syntax Check (Vercel + Neon)
     needs: security
     runs-on: ubuntu-latest
     defaults:
@@ -96,33 +96,27 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
-      - name: Terraform plan
-        run: |
-          terraform plan \
-            -var="vercel_api_token=${{ secrets.VERCEL_TOKEN }}" \
-            -var="neon_api_key=${{ secrets.NEON_API_KEY }}" \
-            -var="neon_org_id=${{ secrets.NEON_ORG_ID }}" \
-            -var="github_repo=Kanokkarn13/HSK-Vocabulary-Frequency"
-
-      - name: Terraform apply (master branch only)
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-        run: |
-          terraform apply -auto-approve \
-            -var="vercel_api_token=${{ secrets.VERCEL_TOKEN }}" \
-            -var="neon_api_key=${{ secrets.NEON_API_KEY }}" \
-            -var="neon_org_id=${{ secrets.NEON_ORG_ID }}" \
-            -var="github_repo=Kanokkarn13/HSK-Vocabulary-Frequency"
-
+# terraform plan/apply are intentionally NOT run in CI. State is local-only
+# (infra/terraform.tfstate, gitignored since it contains DB credentials in
+# plaintext -- no remote backend is configured). A CI runner has no access to
+# that state, so "plan"/"apply" here would always start from a blank slate and
+# try to recreate the Neon/Vercel projects that already exist locally --
+# which is exactly what broke the first few master-branch runs (Terraform
+# apply failing on "already exists" conflicts). fmt/validate need no state and
+# are safe to run on every push; actual plan/apply stays a local, manual
+# operation for this solo project. (A shared remote backend -- e.g. Terraform
+# Cloud's free tier -- would fix this properly if this ever needs a second
+# operator or a CI-driven apply; not needed for now.)
+#
 # Deploy is intentionally NOT a job here: infra/main.tf's vercel_project resource
 # links the Vercel project to this GitHub repo (git_repository block), so Vercel's
 # own native integration handles it for free — a preview deployment per PR and a
 # production deployment on every push to master, with zero extra CI minutes spent.
 #
-# Required repo secrets (Settings > Secrets and variables > Actions):
-#   SONAR_TOKEN    — sonarcloud.io > My Account > Security
-#   VERCEL_TOKEN   — vercel.com account settings > Tokens
-#   NEON_API_KEY   — console.neon.tech > Account > API Keys
-#   NEON_ORG_ID    — console.neon.tech > Organization Settings > General
+# Required repo secret (Settings > Secrets and variables > Actions):
+#   SONAR_TOKEN — sonarcloud.io > My Account > Security
+# (VERCEL_TOKEN/NEON_API_KEY/NEON_ORG_ID are NOT GitHub secrets -- Terraform
+# only ever runs locally, from infra/terraform.tfvars. See wiki/devsecops.md.)
 #
 # GitHub Actions is unlimited/free on a public repo, and SonarCloud's free tier
 # also requires the repo to be public.
