@@ -3,7 +3,6 @@ import { fetchExams, fetchHealth, fetchTopWords } from "./api/client";
 import type { SourceType } from "./api/types";
 import { FilterBar } from "./components/FilterBar";
 import { Navbar } from "./components/Navbar";
-import { SearchPanel } from "./components/SearchPanel";
 import { StatCard } from "./components/StatCard";
 import { EmptyPanel, ErrorPanel, LoadingPanel } from "./components/StatusPanel";
 import { TopWordsChart } from "./components/TopWordsChart";
@@ -137,8 +136,6 @@ export default function App() {
               <EmptyPanel description="ไม่พบคำศัพท์ที่ตรงกับตัวกรองนี้ ลองเปลี่ยนตัวกรองด้านบน" />
             ))}
         </section>
-
-        <SearchPanel />
 
         <section className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm dark:border-ink-800 dark:bg-ink-900">
           <SectionHeading eyebrow="รายละเอียด" title="ตารางคำศัพท์ทั้งหมด" />
