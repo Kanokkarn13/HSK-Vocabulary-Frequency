@@ -1,20 +1,32 @@
-const LOADING_CHARS = ["学", "习", "汉", "语"];
+const LOADING_CHARS = [
+  { char: "学", pinyin: "xué" },
+  { char: "习", pinyin: "xí" },
+  { char: "汉", pinyin: "hàn" },
+  { char: "语", pinyin: "yǔ" },
+];
 
 export function LoadingPanel({ label = "กำลังโหลดข้อมูล..." }: { label?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-ink-200 bg-white/60 py-16 text-ink-400 dark:border-ink-800 dark:bg-ink-900/40">
-      <div className="flex gap-2 text-4xl font-bold" aria-hidden="true">
-        {LOADING_CHARS.map((char, i) => (
-          <span
-            key={char}
-            className="inline-block animate-bounce text-brand-500"
-            style={{ animationDelay: `${i * 120}ms` }}
-          >
-            {char}
-          </span>
+    <div className="flex flex-col items-center justify-center gap-5 overflow-hidden rounded-3xl bg-gradient-to-b from-brand-50 to-white py-16 text-ink-400 dark:from-brand-500/10 dark:to-ink-900/40">
+      <div className="flex gap-3" aria-hidden="true">
+        {LOADING_CHARS.map((item, i) => (
+          <div key={item.char} className="flex flex-col items-center gap-1">
+            <span
+              className="inline-block animate-bounce text-5xl font-bold text-brand-500 drop-shadow-[0_0_16px_rgba(168,63,92,0.55)] dark:drop-shadow-[0_0_16px_rgba(237,189,201,0.45)]"
+              style={{ animationDelay: `${i * 130}ms` }}
+            >
+              {item.char}
+            </span>
+            <span
+              className="animate-pulse text-xs font-medium text-brand-400"
+              style={{ animationDelay: `${i * 130}ms` }}
+            >
+              {item.pinyin}
+            </span>
+          </div>
         ))}
       </div>
-      <p className="text-sm">{label}</p>
+      <p className="animate-pulse text-sm">{label}</p>
     </div>
   );
 }
