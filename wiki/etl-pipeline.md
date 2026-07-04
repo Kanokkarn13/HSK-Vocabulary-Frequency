@@ -69,6 +69,46 @@ setup with timestamps and levels) instead of `print()`.
 
 ---
 
+## `load_sentences.py`
+
+A third, independent loader (`python -m etl.load_sentences`) that populates
+`exam_sentences` (see [Database Schema](database-schema.md#exam_sentences))
+from `data/raw/raw_extractions.parquet` — the same source file
+`load_word_counts.py` reads, but this script only needs the raw text, not
+the segmented word counts, so it runs on its own rather than being folded
+into that pipeline.
+
+**Sentence splitting:** text is split on sentence-final punctuation
+(`。！？!?；;`) and newlines (reading PDFs put each item on its own line).
+
+**Cleaning** (`_clean_candidate`) strips exam scaffolding repeatedly until
+stable, since noise stacks (e.g. `12．★ 他来北京6年了。` has both a question
+number and a star marker):
+
+- Leading question numbers (`12．`, `12.`), CJK ordinal numbers (`一,`)
+- Leading option letters (`A `, `B、`)
+- Stars, brackets, arrows, and other punctuation clusters
+- The literal `例如` (exam "for example" prompts)
+
+A candidate is then dropped entirely if it has fewer than 6 CJK characters,
+is longer than 80 characters, is less than 60% CJK by character count (OCR
+junk / English boilerplate), or still contains mid-sentence noise — a lone
+option letter (`老朋友 B 不认识的字 C 爱好相同的人`, merged multi-choice options)
+or an empty fill-in-the-blank bracket (`（ ）`).
+
+**Boilerplate filter:** every exam paper prints identical instruction text
+and `例如` sample sentences, so after cleaning all 130 files, any sentence
+appearing in **3 or more different exams** is dropped as boilerplate before
+insert — genuine content only ever repeats across at most a couple of exams
+(HSK recycles some real questions).
+
+**Fully rerunnable:** the script `DELETE`s the whole table and reloads it
+every run rather than upserting incrementally, so it's always safe to re-run
+after `raw_extractions.parquet` changes. Current output: ~20,400 sentences
+across 130 files (from ~26,500 before the boilerplate filter).
+
+---
+
 ## Notebook 01: Extract Raw Text
 
 ### Cell pipeline
