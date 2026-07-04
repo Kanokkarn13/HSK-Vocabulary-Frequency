@@ -47,7 +47,7 @@ export function Navbar({ dark, onToggleDark, examCount }: NavbarProps) {
                 คำศัพท์ที่ข้อสอบ HSK ใช้จริง
               </h1>
               <p className="mt-1.5 max-w-md text-sm leading-relaxed text-ink-300">
-                วิเคราะห์ความถี่คำจากข้อสอบ HSK ของจริง แล้วเทียบกับ wordlist ทางการ
+                วิเคราะห์ความถี่คำจากข้อสอบ HSK ของจริง แล้วเทียบกับคำศัพท์ HSK ทางการ
                 ว่าคำไหนคุ้มค่าแก่การท่องมากที่สุด
               </p>
             </div>

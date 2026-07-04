@@ -118,7 +118,7 @@ export default function App() {
           <StatCard
             label="ไม่อยู่ใน HSK"
             value={notInHskCount != null ? notInHskCount.toLocaleString() : "—"}
-            hint="คำนอกเหนือ wordlist ทางการ"
+            hint="คำนอกเหนือคำศัพท์ HSK ทางการ"
           />
         </section>
 
