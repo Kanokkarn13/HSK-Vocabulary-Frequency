@@ -3,8 +3,18 @@ import type { TopWordRow } from "../api/types";
 import { HskBadge } from "./HskBadge";
 import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from "./icons";
 import { EmptyPanel } from "./StatusPanel";
+import { WordDetailModal } from "./WordDetailModal";
 
 const PAGE_SIZE = 10;
+
+/** Lowercase and strip tone marks/spaces so "keyi" matches "kě yǐ". */
+function normalizePinyin(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, "");
+}
 
 function getPageNumbers(current: number, total: number): (number | "ellipsis")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -25,13 +35,31 @@ function getPageNumbers(current: number, total: number): (number | "ellipsis")[]
 export function TopWordsTable({ items }: { items: TopWordRow[] }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
 
   const matchedItems = useMemo(() => items.filter((row) => row.hsk_level != null), [items]);
 
+  // Normalizing pinyin involves Unicode decomposition + regex passes; doing
+  // it once per row here (keyed on the dataset) instead of inside the filter
+  // below avoids repeating that work for every row on every keystroke.
+  const normalizedPinyinByWord = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of matchedItems) {
+      if (row.pinyin != null) map.set(row.word, normalizePinyin(row.pinyin));
+    }
+    return map;
+  }, [matchedItems]);
+
   const filtered = useMemo(() => {
     const q = query.trim();
-    return q ? matchedItems.filter((row) => row.word.includes(q)) : matchedItems;
-  }, [matchedItems, query]);
+    if (!q) return matchedItems;
+    const qPinyin = normalizePinyin(q);
+    return matchedItems.filter(
+      (row) =>
+        row.word.includes(q) ||
+        (qPinyin.length > 0 && (normalizedPinyinByWord.get(row.word) ?? "").includes(qPinyin)),
+    );
+  }, [matchedItems, normalizedPinyinByWord, query]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -47,13 +75,14 @@ export function TopWordsTable({ items }: { items: TopWordRow[] }) {
             setQuery(e.target.value);
             setPage(1);
           }}
-          placeholder="ค้นหาคำศัพท์ในตารางนี้"
+          placeholder="ค้นหาคำศัพท์หรือพินอิน เช่น 学习, xuexi"
           className="font-zh w-full rounded-xl border border-ink-200 bg-ink-50 py-2.5 pl-9 pr-4 text-sm outline-none ring-brand-500 transition focus:ring-2 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-100"
         />
       </div>
 
       <p className="mb-2 text-xs text-ink-400 dark:text-ink-500">
-        แสดง {visible.length.toLocaleString()} จาก {filtered.length.toLocaleString()} คำ
+        แสดง {visible.length.toLocaleString()} จาก {filtered.length.toLocaleString()} คำ ·
+        กดที่คำศัพท์เพื่อดูพินอิน คำแปล และประโยคตัวอย่าง
       </p>
 
       {filtered.length === 0 ? (
@@ -67,32 +96,42 @@ export function TopWordsTable({ items }: { items: TopWordRow[] }) {
             <table className="w-full text-left text-sm">
               <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-400 dark:bg-ink-900 dark:text-ink-500">
                 <tr>
-                  <th className="px-4 py-3 font-medium">#</th>
-                  <th className="px-4 py-3 font-medium">คำศัพท์</th>
-                  <th className="px-4 py-3 font-medium">ระดับ</th>
-                  <th className="px-4 py-3 font-medium text-right">ความถี่</th>
-                  <th className="px-4 py-3 font-medium text-right">จำนวนข้อสอบ</th>
+                  <th className="px-3 py-3 font-medium sm:px-4">#</th>
+                  <th className="px-3 py-3 font-medium sm:px-4">คำศัพท์</th>
+                  <th className="px-3 py-3 font-medium sm:px-4">ระดับ</th>
+                  <th className="px-3 py-3 text-right font-medium sm:px-4">ความถี่</th>
+                  <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">
+                    จำนวนข้อสอบ
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
                 {visible.map((row, idx) => (
                   <tr
                     key={`${row.word}-${row.source_type}`}
-                    className="bg-white transition hover:bg-ink-50 dark:bg-ink-950 dark:hover:bg-ink-900"
+                    onClick={() => setSelectedWord(row.word)}
+                    className="cursor-pointer bg-white transition hover:bg-ink-50 dark:bg-ink-950 dark:hover:bg-ink-900"
                   >
-                    <td className="px-4 py-3 tabular-nums text-ink-400">
+                    <td className="px-3 py-3 tabular-nums text-ink-400 sm:px-4">
                       {(currentPage - 1) * PAGE_SIZE + idx + 1}
                     </td>
-                    <td className="font-zh px-4 py-3 text-lg font-medium text-ink-900 dark:text-ink-50">
-                      {row.word}
+                    <td className="px-3 py-3 sm:px-4">
+                      <span className="font-zh block text-lg font-medium leading-tight text-ink-900 dark:text-ink-50">
+                        {row.word}
+                      </span>
+                      {row.pinyin && (
+                        <span className="block text-xs text-ink-400 dark:text-ink-500">
+                          {row.pinyin}
+                        </span>
+                      )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3 sm:px-4">
                       <HskBadge level={row.hsk_level} />
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-ink-700 dark:text-ink-200">
+                    <td className="px-3 py-3 text-right font-semibold tabular-nums text-ink-700 sm:px-4 dark:text-ink-200">
                       {row.total_frequency.toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-ink-500 dark:text-ink-400">
+                    <td className="hidden px-4 py-3 text-right tabular-nums text-ink-500 sm:table-cell dark:text-ink-400">
                       {row.exam_count}
                     </td>
                   </tr>
@@ -143,6 +182,10 @@ export function TopWordsTable({ items }: { items: TopWordRow[] }) {
             </div>
           )}
         </>
+      )}
+
+      {selectedWord && (
+        <WordDetailModal word={selectedWord} onClose={() => setSelectedWord(null)} />
       )}
     </div>
   );

@@ -17,7 +17,15 @@ The official HSK vocabulary reference. Loaded from a CSV snapshot — never quer
 | `word` | VARCHAR(50) UNIQUE | Simplified Chinese |
 | `pinyin` | VARCHAR(100) | Optional |
 | `hsk_level` | SMALLINT | 1–9 (old HSK 1–6 maps to 1–6) |
+| `definition` | TEXT | English gloss, from the wordlist snapshot CSV |
+| `definition_th` | TEXT | Thai gloss, same source |
 | `created_at` | TIMESTAMPTZ | |
+
+`definition`/`definition_th` are loaded by `load_wordlist_csv()` in
+`etl/load_to_db.py` from the `definition`/`definition_th` columns already
+present in `data/processed/hsk_wordlist.csv` — added 2026-07-04 to power the
+word-detail lookup (`GET /api/search/word-detail`, see
+[API Endpoints](api-endpoints.md)), no new data source needed.
 
 ---
 
@@ -94,6 +102,33 @@ Unique constraint: `(word, source_type)`
 
 ---
 
+### `exam_sentences`
+
+Example sentences extracted from `data/raw/raw_extractions.parquet`, one row
+per cleaned, deduplicated sentence per exam file. Powers the example-sentence
+list in `GET /api/search/word-detail`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | SERIAL PK | |
+| `exam_id` | VARCHAR(100) | Composite FK, see below |
+| `source_type` | VARCHAR(20) | `reading` or `listening` |
+| `sentence` | TEXT | Cleaned sentence text |
+| `created_at` | TIMESTAMPTZ | |
+
+Unique constraint: `(exam_id, source_type, sentence)`
+Foreign key: `(exam_id, source_type)` → `exam_sources (exam_id, source_type)`
+
+Populated by `etl/load_sentences.py`, which is fully rerunnable — it deletes
+and reloads the whole table each run rather than upserting incrementally, so
+re-running it after regenerating `raw_extractions.parquet` is always safe.
+See [ETL Pipeline](etl-pipeline.md#load_sentencespy) for the cleaning rules
+(question numbers, option letters, fill-in-the-blank markers, and
+exam-boilerplate sentences shared across 3+ papers are all stripped before
+insert).
+
+---
+
 ## Indexes
 
 | Index | Table | Column(s) | Purpose |
@@ -113,7 +148,7 @@ Unique constraint: `(word, source_type)`
 hsk_wordlist ──(join on word)── word_frequencies ──► frequency_aggregates
                                        │
                                        ▼
-                                 exam_sources
+                                 exam_sources ──◄── exam_sentences
 ```
 
 `word_frequencies (exam_id, source_type)` → `exam_sources (exam_id, source_type)` (composite FK)

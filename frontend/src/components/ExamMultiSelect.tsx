@@ -30,6 +30,7 @@ export function ExamMultiSelect({ exams, selected, onChange }: ExamMultiSelectPr
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -43,8 +44,14 @@ export function ExamMultiSelect({ exams, selected, onChange }: ExamMultiSelectPr
   }, [open]);
 
   useEffect(() => {
-    if (open) searchRef.current?.focus();
-    else setQuery("");
+    if (open) {
+      searchRef.current?.focus();
+      // Inside a scrollable container (e.g. the mobile filter sheet) the
+      // dropdown can open below the fold — bring it into view.
+      dropdownRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    } else {
+      setQuery("");
+    }
   }, [open]);
 
   const groups = useMemo(() => {
@@ -104,6 +111,7 @@ export function ExamMultiSelect({ exams, selected, onChange }: ExamMultiSelectPr
       </button>
 
       <div
+        ref={dropdownRef}
         className={`absolute left-0 top-full z-20 mt-2 w-72 origin-top-left rounded-xl border border-ink-200 bg-white shadow-xl transition duration-150 ease-out dark:border-ink-700 dark:bg-ink-900 ${
           open
             ? "pointer-events-auto scale-100 opacity-100"

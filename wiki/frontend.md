@@ -24,16 +24,19 @@ loaded Postgres database — see [Setup Guide](setup.md) and
 ```
 frontend/src/
 ├── App.tsx                 # Page layout, filter state (hskLevel, sourceType,
-│                            # examLevel, examId), data fetching, stat calculations
+│                            # examLevel, examId), data fetching, stat calculations,
+│                            # floating filter button + mobile/desktop filter sheet
 ├── api/
-│   ├── client.ts            # axios instance + fetchTopWords/fetchExams/searchWord
+│   ├── client.ts            # axios instance + fetchTopWords/fetchExams/searchWord/fetchWordDetail
 │   └── types.ts              # Response/row types matching the backend schemas
 ├── components/
 │   ├── Navbar.tsx            # Dark masthead header, wordmark, dark-mode toggle
 │   ├── FilterBar.tsx         # Word HSK level, source type, exam-paper level, exam picker
+│   ├── ActiveFilterChips.tsx # Compact "filtering by: X ×  Y ×" summary above the table
 │   ├── StatCard.tsx          # Single stat cell (used inside a shared divided strip)
 │   ├── TopWordsChart.tsx     # Recharts horizontal bar chart, top 15 words
-│   ├── TopWordsTable.tsx     # Full word list — client-side search + pagination
+│   ├── TopWordsTable.tsx     # Full word list — client-side search (word + pinyin) + pagination
+│   ├── WordDetailModal.tsx   # Click a table row → pinyin, definitions, example sentences
 │   ├── SearchPanel.tsx       # Looks up one word via /api/search/word
 │   ├── HskBadge.tsx          # Color-coded HSK-level pill
 │   ├── StatusPanel.tsx       # Loading / error / empty states shared across sections
@@ -57,9 +60,14 @@ There are two independent "level" concepts, both exposed as separate filters:
   the word's own level — an HSK1 word like 你好 appears throughout HSK3 *and*
   HSK4 papers.
 
-Selecting a specific exam (`exam_id`) combines that exam's reading (PDF) and
-listening (audio) word counts automatically — the source-type toggle is
-disabled and dimmed in this state, with a tooltip explaining why.
+Selecting a specific exam (`exam_id`) and the source-type toggle now combine
+freely — e.g. exam `H30000` + `reading` shows only that exam's reading
+counts, `all` (the default) sums reading+listening. An earlier version
+force-disabled the source-type toggle whenever a specific exam was selected;
+that was a backend bug (`source_type` was silently dropped in the
+`exam_id`/`exam_level` query branches, see [API
+Endpoints](api-endpoints.md#get-apifrequencytop)), not an intentional
+restriction, and was fixed 2026-07-04.
 
 `App.tsx` fetches the *entire* matching word list in one call
 (`limit` up to 10,000, see [API Endpoints](api-endpoints.md)) rather than
@@ -69,6 +77,50 @@ rows with no matched `hsk_level` (see the project's [scope boundary
 note](../README.md) — unmatched words are intentional data, but the *table*
 only lists words that resolved to an HSK level. The chart and stat cards are
 unaffected by that filter and still reflect the whole scope.
+
+---
+
+## Word detail modal
+
+Clicking any row in `TopWordsTable` opens `WordDetailModal`, which fetches
+`GET /api/search/word-detail?q=<word>` (see [API Endpoints](api-endpoints.md))
+and shows pinyin, HSK badge, English + Thai definitions, and up to 10 example
+sentences pulled from real exam text with the source filename and
+reading/listening chip for each. The searched word is highlighted inline in
+every sentence. Words with no wordlist match still show their example
+sentences, with a note that dictionary data isn't available. Closes on Esc,
+backdrop click, or the close button; body scroll is locked while open.
+
+`TopWordsTable` also shows each word's pinyin as a subtitle under the
+Chinese characters (from the `pinyin` field now included in
+`GET /api/frequency/top`), and the in-table search box matches against
+pinyin as well as the word itself — normalized (diacritics stripped, spaces
+removed, lowercased) so typing `xuexi` matches `xué xí`.
+
+---
+
+## Filter discoverability: chips + floating button
+
+Two additions address the main UX gap of `FilterBar` being at the top of a
+long page — a user scrolled deep into the table couldn't see or change the
+active scope without scrolling back up:
+
+- **`ActiveFilterChips`**, rendered directly above the table, summarizes
+  every non-default filter as a removable chip (`คำศัพท์ HSK 2 ×`,
+  `การอ่าน ×`, ...) plus a "clear all" link. This is visible without
+  scrolling regardless of table position, since it lives in the same
+  section as the table itself.
+- A **floating filter button** (bottom-right, badge shows active filter
+  count) appears once `FilterBar` scrolls out of the viewport, tracked via
+  an `IntersectionObserver` on a wrapper `div` around `FilterBar` in
+  `App.tsx`. Clicking it opens the same `FilterBar` component a second time,
+  inside a bottom sheet on mobile / centered dialog on desktop (both are the
+  same conditionally-styled overlay, not two separate components), with a
+  "ดูผลลัพธ์" button to dismiss it.
+
+`FilterBar`'s exam-picker dropdown (`ExamMultiSelect`) scrolls itself into
+view on open, since inside the mobile sheet's scrollable container the
+dropdown could otherwise open below the fold.
 
 ---
 

@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchExams, fetchHealth, fetchTopWords } from "./api/client";
 import type { SourceType } from "./api/types";
+import { ActiveFilterChips } from "./components/ActiveFilterChips";
 import { FilterBar } from "./components/FilterBar";
+import { FilterIcon, XIcon } from "./components/icons";
 import { Navbar } from "./components/Navbar";
 import { StatCard } from "./components/StatCard";
 import { EmptyPanel, ErrorPanel, LoadingPanel } from "./components/StatusPanel";
@@ -42,6 +44,41 @@ export default function App() {
   const [examIds, setExamIds] = useState<string[]>([]);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
 
+  // Floating filter button: appears once the main FilterBar scrolls out of
+  // view, so users deep in the table never have to scroll back up.
+  const filterBarRef = useRef<HTMLDivElement>(null);
+  const [filterBarVisible, setFilterBarVisible] = useState(true);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+
+  useEffect(() => {
+    const el = filterBarRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) =>
+      setFilterBarVisible(entry.isIntersecting),
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!filterSheetOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFilterSheetOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [filterSheetOpen]);
+
+  const activeFilterCount =
+    (hskLevel != null ? 1 : 0) +
+    (sourceType !== "all" ? 1 : 0) +
+    (examLevel != null ? 1 : 0) +
+    (examIds.length > 0 ? 1 : 0);
+
   useEffect(() => {
     fetchHealth()
       .then(() => setApiOk(true))
@@ -52,6 +89,21 @@ export default function App() {
   }, []);
 
   const exams = useAsync(() => fetchExams(), []);
+
+  // FilterBar is rendered twice (inline + inside the filter sheet below) so
+  // the same controls are reachable whether or not the inline bar is
+  // scrolled into view — shared here so the two call sites can't drift.
+  const filterBarProps = {
+    hskLevel,
+    onHskLevelChange: setHskLevel,
+    sourceType,
+    onSourceTypeChange: setSourceType,
+    examLevel,
+    onExamLevelChange: setExamLevel,
+    examIds,
+    onExamIdsChange: setExamIds,
+    exams: exams.status === "success" ? exams.data.items : [],
+  };
 
   const topWords = useAsync(
     () => fetchTopWords({ hskLevel, sourceType, examLevel, examIds, limit: FULL_LIST_LIMIT }),
@@ -86,17 +138,9 @@ export default function App() {
           <ErrorPanel message="ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในภายหลัง" />
         )}
 
-        <FilterBar
-          hskLevel={hskLevel}
-          onHskLevelChange={setHskLevel}
-          sourceType={sourceType}
-          onSourceTypeChange={setSourceType}
-          examLevel={examLevel}
-          onExamLevelChange={setExamLevel}
-          examIds={examIds}
-          onExamIdsChange={setExamIds}
-          exams={exams.status === "success" ? exams.data.items : []}
-        />
+        <div ref={filterBarRef}>
+          <FilterBar {...filterBarProps} />
+        </div>
 
         <section className="grid grid-cols-2 divide-y divide-ink-200 overflow-hidden rounded-2xl border border-ink-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0 dark:divide-ink-800 dark:border-ink-800 dark:bg-ink-900">
           <StatCard
@@ -136,6 +180,16 @@ export default function App() {
 
         <section className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm dark:border-ink-800 dark:bg-ink-900">
           <SectionHeading eyebrow="รายละเอียด" title="ตารางคำศัพท์ทั้งหมด" />
+          <ActiveFilterChips
+            hskLevel={hskLevel}
+            onHskLevelChange={setHskLevel}
+            sourceType={sourceType}
+            onSourceTypeChange={setSourceType}
+            examLevel={examLevel}
+            onExamLevelChange={setExamLevel}
+            examIds={examIds}
+            onExamIdsChange={setExamIds}
+          />
           {topWords.status === "loading" && <LoadingPanel />}
           {topWords.status === "error" && <ErrorPanel message={topWords.error} />}
           {topWords.status === "success" &&
@@ -151,6 +205,54 @@ export default function App() {
           <span>HSK Vocabulary Frequency Analyzer — Data Engineering project</span>
         </footer>
       </main>
+
+      {!filterBarVisible && !filterSheetOpen && (
+        <button
+          onClick={() => setFilterSheetOpen(true)}
+          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-700"
+        >
+          <FilterIcon className="h-4 w-4" />
+          ตัวกรอง
+          {activeFilterCount > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-xs font-bold text-brand-700">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+      )}
+
+      {filterSheetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
+          onClick={() => setFilterSheetOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="ตัวกรอง"
+        >
+          <div
+            className="max-h-[85vh] w-full overflow-y-auto overflow-x-hidden rounded-t-2xl bg-[#faf8f6] p-4 pb-6 shadow-xl sm:max-w-2xl sm:rounded-2xl dark:bg-ink-950"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-ink-700 dark:text-ink-200">ตัวกรอง</h3>
+              <button
+                onClick={() => setFilterSheetOpen(false)}
+                aria-label="ปิด"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-600 dark:hover:bg-ink-800 dark:hover:text-ink-300"
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <FilterBar {...filterBarProps} />
+            <button
+              onClick={() => setFilterSheetOpen(false)}
+              className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+            >
+              ดูผลลัพธ์
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

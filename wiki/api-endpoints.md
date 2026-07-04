@@ -31,7 +31,7 @@ Top N most frequent words, with optional filters.
 |---|---|---|---|
 | `hsk_level` | int (1–9) | null | Filter by the word's own official HSK level |
 | `exam_level` | int (1–9) | null | Filter by the HSK level of the exam **paper itself** (e.g. 3 or 4) — independent of `hsk_level`. Bypasses the pre-aggregated `frequency_aggregates` table and joins `word_frequencies`+`exam_sources` live, since aggregates have no per-exam-level dimension |
-| `exam_id` | string | null | Restrict to one specific exam. Reading and listening counts for that exam are automatically combined (the `source_type` param is ignored when this is set) |
+| `exam_id` | string | null | Restrict to one or more specific exams (repeat the param). `source_type` still applies on top of this — it no longer forces reading+listening combined (fixed 2026-07-04; previously `source_type` was silently dropped whenever `exam_id` or `exam_level` was set) |
 | `source_type` | string | `all` | `reading`, `listening`, or `all` |
 | `limit` | int (1–10,000) | 50 | Number of results returned. Raised to 10,000 (from an earlier 500) so the frontend can fetch the entire matching list for its searchable table |
 
@@ -53,13 +53,18 @@ GET /api/frequency/top?exam_id=H31001
       "source_type": "reading",
       "total_frequency": 47,
       "exam_count": 12,
-      "in_official_wordlist": true
+      "in_official_wordlist": true,
+      "pinyin": "xué shēng"
     }
   ],
   "count": 20,
   "total_count": 7587
 }
 ```
+
+`pinyin` is joined from `hsk_wordlist` and `null` for words with no wordlist
+match (added 2026-07-04, so the frontend table can show pinyin without a
+separate lookup per row).
 
 `count` is `items.length` (capped by `limit`); `total_count` is the full
 number of matching rows regardless of `limit` — use it for "N of M" UI, not `count`.
@@ -127,6 +132,60 @@ GET /api/search/word?q=学习
   ]
 }
 ```
+
+---
+
+## GET `/api/search/word-detail`
+
+Pinyin, English/Thai definitions, and up to 10 example sentences (with
+source exam files) for a single word — powers the click-to-expand word
+detail modal in the frontend table.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `q` | string | yes | Chinese word to look up |
+
+**Example:**
+
+```
+GET /api/search/word-detail?q=可以
+```
+
+**Response:**
+```json
+{
+  "word": "可以",
+  "in_wordlist": true,
+  "pinyin": "kě yǐ",
+  "hsk_level": 2,
+  "definition": "can, may, possible, acceptable, not bad",
+  "definition_th": "สามารถ, อาจจะ, เป็นไปได้, ยอมรับได้, ไม่เลว",
+  "sentence_total": 1020,
+  "file_total": 129,
+  "sentences": [
+    {
+      "sentence": "你也可以去学校东门,坐203路公共汽车。",
+      "exam_id": "H31329",
+      "source_type": "listening",
+      "filename": "H31329-听力.mp3",
+      "exam_hsk_level": 3
+    }
+  ]
+}
+```
+
+`sentence_total`/`file_total` count distinct sentence text and distinct
+`(exam_id, source_type)` matches respectively, so a question reused verbatim
+across two exams (HSK papers recycle some items) counts once, not twice.
+`sentences` is capped at 10, spread one-per-file first and then by sentence
+length closest to 20 characters (reads best as a standalone example), with
+exam-boilerplate sentences (identical instruction/example text printed on
+every paper) filtered out at load time — see
+[ETL Pipeline](etl-pipeline.md#load_sentencespy). If `in_wordlist` is
+`false`, `pinyin`/`hsk_level`/definitions are all `null` — the word still
+gets its example sentences, just no dictionary data.
 
 ---
 

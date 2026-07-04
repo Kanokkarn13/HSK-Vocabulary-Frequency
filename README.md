@@ -107,13 +107,14 @@ HSK-Vocabulary-Frequency/
 │   ├── db.py
 │   └── routers/
 │       ├── frequency.py            # GET /api/frequency/top, /exams
-│       ├── search.py               # GET /api/search/word
+│       ├── search.py               # GET /api/search/word, /word-detail
 │       └── compare.py              # GET /api/compare/wordlist-vs-actual
 ├── frontend/                       # React dashboard (Vite + TypeScript + Tailwind CSS v4)
 │   ├── src/
-│   │   ├── App.tsx                 # Page layout, filter state, data fetching
+│   │   ├── App.tsx                 # Page layout, filter state, data fetching, floating filter button
 │   │   ├── api/                    # client.ts (axios) + types.ts
-│   │   ├── components/             # Navbar, FilterBar, TopWordsChart/Table, SearchPanel, ErrorBoundary, icons.tsx
+│   │   ├── components/             # Navbar, FilterBar, ActiveFilterChips, TopWordsChart/Table,
+│   │   │                           # WordDetailModal, SearchPanel, ErrorBoundary, icons.tsx
 │   │   ├── hooks/useAsync.ts        # Shared async-fetch state hook + error sanitization
 │   │   └── index.css               # Design tokens (brand/ink color scales, fonts)
 │   └── .env.example                # VITE_API_BASE_URL
@@ -124,6 +125,7 @@ HSK-Vocabulary-Frequency/
 │   ├── segment_and_count.py
 │   ├── load_to_db.py               # Upsert primitives (wordlist, exam_sources, frequencies, aggregates)
 │   ├── load_word_counts.py         # Bridges notebook output (parquet) → Postgres, run after notebooks 01/02
+│   ├── load_sentences.py           # Extracts/loads example sentences into exam_sentences (rerunnable)
 │   └── logging_config.py           # Shared logging.Logger setup (no print())
 ├── db/
 │   └── schema.sql
@@ -205,6 +207,15 @@ This reads `data/processed/word_counts.parquet`, `hsk_wordlist.csv`, and
 `hsk_wordlist`, `exam_sources`, `word_frequencies`, then rebuilds
 `frequency_aggregates` once. Safe to re-run after re-running notebooks 01/02.
 
+```bash
+python -m etl.load_sentences
+```
+
+Extracts example sentences from `raw_extractions.parquet` into
+`exam_sentences`, powering the word-detail lookup's example sentences (see
+[wiki/etl-pipeline.md](wiki/etl-pipeline.md#load_sentencespy)). Independent
+of the step above — run it any time `raw_extractions.parquet` changes.
+
 ### 5. Run the API
 
 ```bash
@@ -232,9 +243,10 @@ Dashboard available at: `http://localhost:5173`
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/frequency/top` | Top N most frequent words. Params: `hsk_level` (word's level), `exam_level` (level of the exam paper), `exam_id` (one specific exam — reading+listening combined), `source_type` (reading/listening/all), `limit` (up to 10,000). Response includes `total_count`, the full match count regardless of `limit` |
+| `GET /api/frequency/top` | Top N most frequent words, each including `pinyin`. Params: `hsk_level` (word's level), `exam_level` (level of the exam paper), `exam_id` (one or more specific exams), `source_type` (reading/listening/all — combines freely with `exam_id`/`exam_level`), `limit` (up to 10,000). Response includes `total_count`, the full match count regardless of `limit` |
 | `GET /api/frequency/exams` | List of exams (reading + listening merged into one entry per `exam_id`) — powers the frontend's exam picker |
 | `GET /api/search/word?q=你好` | Frequency breakdown for a single word across all exams |
+| `GET /api/search/word-detail?q=你好` | Pinyin, EN/TH definitions, and up to 10 example sentences (with source exam files) for one word — powers the frontend's click-to-expand word modal |
 | `GET /api/compare/wordlist-vs-actual` | Words in exams NOT in official wordlist, and official words ranked by exam frequency. Not currently used by the frontend (see [wiki/frontend.md](wiki/frontend.md)), kept as a standalone API capability |
 | `GET /health` | Health check |
 
@@ -260,8 +272,8 @@ pytest tests/ -v
 | 1 — Data Prep | ✅ Complete | 130 files inventoried, 65 PDFs extracted (pdfplumber + PaddleOCR), wordlist API integrated (7,410 words, levels 1-6) |
 | 2 — Audio Processing | ✅ Complete | Whisper medium, 65/65 audio files transcribed, merged into `raw_extractions.parquet` (130 rows) |
 | 3 — ETL Core | ✅ Complete | `02_segment_and_count.ipynb` — jieba + HSK labeling + fallback decomposition (numerals, verbs, pronouns, measure words, aspect particles, ...) + CC-CEDICT cross-check → `word_counts.parquet` (102,315 rows, **95.5%** of occurrences / 61.2% of unique words matched to an HSK level) |
-| 4 — API | ✅ Complete | 4 FastAPI endpoints backed by a real Postgres database (`etl/load_word_counts.py` loads 7,587 words / 130 exams / 102,315 frequency rows), verified end-to-end from the frontend |
-| 5 — Frontend | ✅ Complete | React + Vite + TypeScript + Tailwind dashboard — filters (word HSK level, exam-paper level, specific exam, source type), top-15 chart, searchable/paginated full word table, word lookup panel, dark mode, error boundary. See [wiki/frontend.md](wiki/frontend.md) |
+| 4 — API | ✅ Complete | 5 FastAPI endpoints backed by a real Postgres database (`etl/load_word_counts.py` loads 7,587 words / 130 exams / 102,315 frequency rows; `etl/load_sentences.py` loads ~20,400 example sentences), verified end-to-end from the frontend |
+| 5 — Frontend | ✅ Complete | React + Vite + TypeScript + Tailwind dashboard — filters (word HSK level, exam-paper level, specific exam, source type) with a scroll-following floating filter button + removable filter chips, top-15 chart, searchable/paginated full word table with pinyin (search matches pinyin too), click-to-expand word detail modal (definitions + example sentences from real exams), word lookup panel, dark mode, error boundary. See [wiki/frontend.md](wiki/frontend.md) |
 | 6 — DevSecOps | 🟡 In progress | Docker (local dev only), GitHub Actions (Test → Security → IaC), Terraform (Vercel + Neon — project provisioned, schema + data loaded into Neon), Dependabot, SonarCloud. Pipeline being finalized in [PR #13](https://github.com/Kanokkarn13/HSK-Vocabulary-Frequency/pull/13); UptimeRobot monitor not yet configured |
 | 7 — Portfolio | 🔲 Not started | Architecture diagram, demo video |
 
@@ -289,6 +301,14 @@ via `terraform apply`), the schema is applied, and all 130 exams'
 word-frequency data is loaded into Neon. Changes land through a PR into
 `master` rather than a direct push, so both the GitHub Actions pipeline and
 Vercel's preview deploy run against every change before it's live.
+
+> **Migration note:** the `definition`/`definition_th` columns and
+> `exam_sentences` table (word-detail feature, 2026-07-04) were only applied
+> and loaded against the local Docker Postgres so far. Before this reaches
+> Neon, run the updated `db/schema.sql` against Neon, then
+> `load_wordlist_csv()` (for definitions) and `python -m etl.load_sentences`
+> (for example sentences) with `DB_HOST`/etc pointed at Neon — otherwise
+> `/api/search/word-detail` will error in production.
 
 See [Deploying to Vercel + Neon](wiki/deploy-vercel.md) for full setup steps
 and [DevSecOps Pipeline](wiki/devsecops.md) for the CI/CD + IaC pipeline.

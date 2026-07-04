@@ -32,7 +32,6 @@ export function FilterBar({
 }: FilterBarProps) {
   const examLevels = [...new Set(exams.map((e) => e.hsk_level).filter((l): l is number => l != null))].sort();
   const examOptions = exams.filter((e) => examLevel == null || e.hsk_level === examLevel);
-  const isSingleExam = examIds.length > 0;
 
   return (
     <div className="space-y-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm dark:border-ink-800 dark:bg-ink-900">
@@ -72,18 +71,12 @@ export function FilterBar({
           <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-ink-400">
             ประเภทข้อสอบ
           </span>
-          <div
-            className={`flex rounded-full bg-ink-100 p-1 dark:bg-ink-800 ${
-              isSingleExam ? "opacity-40" : ""
-            }`}
-            title={isSingleExam ? "เลือกข้อสอบเฉพาะแล้ว — รวมการอ่าน+การฟังของข้อสอบนั้นอัตโนมัติ" : undefined}
-          >
+          <div className="flex rounded-full bg-ink-100 p-1 dark:bg-ink-800">
             {SOURCE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => onSourceTypeChange(opt.value)}
-                disabled={isSingleExam}
-                className={`rounded-full px-3 py-1 text-sm font-medium transition disabled:cursor-not-allowed ${
+                className={`rounded-full px-3 py-1 text-sm font-medium transition ${
                   sourceType === opt.value
                     ? "bg-white text-brand-600 shadow-sm dark:bg-ink-950 dark:text-brand-400"
                     : "text-ink-500 dark:text-ink-400"
@@ -97,7 +90,7 @@ export function FilterBar({
       </div>
 
       <div className="flex flex-col gap-4 border-t border-ink-100 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-ink-800">
-        <div className="flex items-center gap-2">
+        <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
           <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-ink-400">
             ระดับข้อสอบ (HSK ของชุดข้อสอบ)
           </span>

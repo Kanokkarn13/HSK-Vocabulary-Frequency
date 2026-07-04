@@ -4,6 +4,7 @@ import type {
   SearchWordResponse,
   SourceType,
   TopWordsResponse,
+  WordDetailResponse,
 } from "./types";
 
 export const API_BASE_URL =
@@ -44,6 +45,13 @@ export async function fetchTopWords(params: ScopeParams): Promise<TopWordsRespon
       exam_id: params.examIds?.length ? params.examIds : undefined,
       limit: params.limit ?? 50,
     },
+  });
+  return data;
+}
+
+export async function fetchWordDetail(word: string): Promise<WordDetailResponse> {
+  const { data } = await client.get<WordDetailResponse>("/api/search/word-detail", {
+    params: { q: word },
   });
   return data;
 }
