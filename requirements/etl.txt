@@ -2,7 +2,7 @@
 # pkg_resources at build time, which newer setuptools dropped by default.
 setuptools<81
 pandas==3.0.3
-numpy==1.26.4
+numpy==2.5.0
 pyarrow==24.0.0
 matplotlib==3.11.0
 pdfplumber==0.11.4
