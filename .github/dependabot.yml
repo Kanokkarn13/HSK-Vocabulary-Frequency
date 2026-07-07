@@ -5,6 +5,13 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # numpy>=2.5.0 requires Python >=3.12; this project (and CI) pins
+      # Python 3.11 everywhere. A prior bump to 2.5.1 got merged anyway
+      # despite its own CI run failing on exactly this -- ignore future
+      # bumps here until the project's Python version moves too.
+      - dependency-name: "numpy"
+        versions: [">=2.5.0"]
 
   - package-ecosystem: "npm"
     directory: "/frontend"
