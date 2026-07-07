@@ -144,6 +144,9 @@ insert).
 
 ## Entity Relationship
 
+See [Diagrams](diagrams.md#entity-relationship-diagram) for the full Mermaid
+ERD with column types. Summary:
+
 ```
 hsk_wordlist ──(join on word)── word_frequencies ──► frequency_aggregates
                                        │

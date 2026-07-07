@@ -285,7 +285,7 @@ automatically — see [wiki/devsecops.md](wiki/devsecops.md).
 | 2 — Audio Processing | ✅ Complete | Whisper medium, 65/65 audio files transcribed, merged into `raw_extractions.parquet` (130 rows) |
 | 3 — ETL Core | ✅ Complete | `02_segment_and_count.ipynb` — jieba + HSK labeling + fallback decomposition (numerals, verbs, pronouns, measure words, aspect particles, ...) + CC-CEDICT cross-check → `word_counts.parquet` (102,315 rows, **95.5%** of occurrences / 61.2% of unique words matched to an HSK level) |
 | 4 — API | ✅ Complete | 5 FastAPI endpoints backed by a real Postgres database (`etl/load_word_counts.py` loads 7,587 words / 130 exams / 102,315 frequency rows; `etl/load_sentences.py` loads ~20,400 example sentences), verified end-to-end from the frontend |
-| 5 — Frontend | ✅ Complete | React + Vite + TypeScript + Tailwind dashboard — filters (word HSK level, exam-paper level, specific exam via multi-select grouped by HSK level, source type) with a scroll-following floating filter button + removable filter chips, top-15 chart, searchable/paginated full word table with pinyin (search matches pinyin too), click-to-expand word detail modal (definitions + example sentences from real exams), dark mode, error boundary. See [wiki/frontend.md](wiki/frontend.md). **Known production bug:** `/api/search/word-detail` returns HTTP 500 live — see the Deployment section below |
+| 5 — Frontend | ✅ Complete | React + Vite + TypeScript + Tailwind dashboard — filters (word HSK level, exam-paper level, specific exam via multi-select grouped by HSK level, source type) with a scroll-following floating filter button + removable filter chips, top-15 chart, searchable/paginated full word table with pinyin (search matches pinyin too), click-to-expand word detail modal (definitions + example sentences from real exams), dark mode, error boundary. See [wiki/frontend.md](wiki/frontend.md) |
 | 6 — DevSecOps | 🟡 Core complete, security additions planned | Docker (local dev only), GitHub Actions (Test → Security → IaC), Terraform (Vercel + Neon — project provisioned, schema + data loaded into Neon), Dependabot, SonarCloud. [PR #13](https://github.com/Kanokkarn13/HSK-Vocabulary-Frequency/pull/13) merged; CI no longer runs `terraform apply` (state is local-only, see [wiki/devsecops.md](wiki/devsecops.md)); API test coverage added to satisfy the SonarCloud gate. UptimeRobot monitor still needs manual dashboard setup. **Planned:** OWASP ZAP (DAST, complements Bandit's SAST) — free, self-hosted/CI-run. Cloudflare WAF deferred until the project has a custom domain (the current `hsk-vocabulary-frequency.vercel.app` URL is a Vercel-owned subdomain, not something we can point at Cloudflare's nameservers). See [wiki/devsecops.md](wiki/devsecops.md) for rationale |
 | 7 — Analytics | 🔲 Planned | PostHog free tier — page views, word searches, filter usage on the deployed dashboard. See [wiki/analytics-seo.md](wiki/analytics-seo.md) |
 | 8 — SEO | 🔲 Planned | Google Search Console + Google Lighthouse (both free, no account limits) + Ahrefs Webmaster Tools (free tier, verified-site technical audit — chosen over Ubersuggest, which is keyword-research-for-content-marketing focused and daily-query-limited, not what this project needs). See [wiki/analytics-seo.md](wiki/analytics-seo.md) for rationale |
@@ -317,22 +317,24 @@ Cloudflare plan). `master` has merged both
 [PR #13](https://github.com/Kanokkarn13/HSK-Vocabulary-Frequency/pull/13)
 (the DevSecOps pipeline) and the full `fix/perf-and-loading-ui` branch
 (word-detail modal, multi-select exam picker, filter chips, UI polish) —
-everything in the Development Phases table above is live except the one bug
-noted below. The Neon and Vercel projects both exist (created via
-`terraform apply`), the schema is applied, and all 130 exams'
-word-frequency data is loaded into Neon. Changes land through a PR into
-`master` rather than a direct push, so both the GitHub Actions pipeline and
-Vercel's preview deploy run against every change before it's live.
+everything in the Development Phases table above is live. The Neon and Vercel
+projects both exist (created via `terraform apply`), the schema is applied,
+and all 130 exams' word-frequency data, wordlist definitions, and example
+sentences are loaded into Neon. Changes land through a PR into `master`
+rather than a direct push, so both the GitHub Actions pipeline and Vercel's
+preview deploy run against every change before it's live.
 
-> **Known bug (confirmed live 2026-07-07):** `GET /api/search/word-detail`
-> returns HTTP 500 in production — `curl` against the deployed URL with a
-> browser User-Agent (the API blocks the default `curl` UA as a scraper)
-> reproduces it. Root cause: the `definition`/`definition_th` columns and
-> `exam_sentences` table (word-detail feature) were only ever applied and
-> loaded against the local Docker Postgres, not Neon. Fix: run the updated
-> `db/schema.sql` against Neon, then `load_wordlist_csv()` (for definitions)
-> and `python -m etl.load_sentences` (for example sentences) with
-> `DB_HOST`/etc pointed at Neon's connection string.
+> **Fixed bug (2026-07-07):** `GET /api/search/word-detail` returned HTTP 500
+> in production for every word. Root cause: the `definition`/`definition_th`
+> columns and `exam_sentences` table (word-detail feature) were only ever
+> applied and loaded against the local Docker Postgres, not Neon — `db/schema.sql`'s
+> `CREATE TABLE IF NOT EXISTS` is a no-op against an already-existing table,
+> so it silently never added the new columns there. Fixed by running the
+> migration + `load_wordlist_csv()` + `python -m etl.load_sentences` directly
+> against Neon. This was a deploy-process gap, not something pytest could
+> catch — see [wiki/diagrams.md](wiki/diagrams.md#request-sequence--get-apisearchword-detail)
+> for the request flow and [scripts/check_schema_drift.py](scripts/check_schema_drift.py)
+> for the guardrail added to catch this class of bug before the next schema change.
 
 See [Deploying to Vercel + Neon](wiki/deploy-vercel.md) for full setup steps
 and [DevSecOps Pipeline](wiki/devsecops.md) for the CI/CD + IaC pipeline.
@@ -352,3 +354,4 @@ Detailed documentation is in the [`wiki/`](wiki/) directory:
 - [DevSecOps Pipeline](wiki/devsecops.md)
 - [Analytics & SEO](wiki/analytics-seo.md)
 - [Deploying to Vercel + Neon](wiki/deploy-vercel.md)
+- [Diagrams](wiki/diagrams.md) — ERD, system architecture, ETL/CI-CD flow, request sequence

@@ -63,6 +63,24 @@ Re-run `load_word_counts` (against the direct endpoint) any time the
 notebooks are re-run and you want to refresh the deployed data — this is a
 manual step; there's no scheduled/cron job wired up for it.
 
+**After any change to `db/schema.sql`**, also run
+[`scripts/check_schema_drift.py`](../scripts/check_schema_drift.py) against
+Neon before you consider the deploy done:
+
+```bash
+DB_HOST=<host> DB_USER=<user> DB_PASSWORD=<password> DB_NAME=<db> DB_SSLMODE=require \
+    python -m scripts.check_schema_drift
+```
+
+`CREATE TABLE IF NOT EXISTS` (what `schema.sql` uses throughout) is a no-op
+against a table that already exists, so it silently does **not** add a column
+that was appended to an existing table's definition — that's exactly what
+caused the 2026-07-07 production incident (`definition`/`definition_th` and
+`exam_sentences` were added to `schema.sql` and applied locally, but Neon
+never got the migration, so `/api/search/word-detail` 500'd on every request).
+This script diffs the connected database's actual columns/tables against what
+`schema.sql` currently defines and exits non-zero listing anything missing.
+
 ## 3. Connect the repo in Vercel
 
 1. In the Vercel dashboard: **New Project** → import this Git repo.
