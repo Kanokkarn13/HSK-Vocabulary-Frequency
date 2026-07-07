@@ -7,7 +7,7 @@ pandas==3.0.3
 # Python version bump across backend/etl/CI, not independently.
 # A Dependabot PR bumped this to 2.5.1 anyway and got merged despite its own
 # CI run failing on exactly this incompatibility -- reverted back down.
-numpy==2.3.5
+numpy==2.4.6
 pyarrow==24.0.0
 matplotlib==3.11.0
 pdfplumber==0.11.4
