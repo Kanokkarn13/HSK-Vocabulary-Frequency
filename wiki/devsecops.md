@@ -106,6 +106,13 @@ hotspots. Free only for public repos — needs `SONAR_TOKEN` (from
 sonarcloud.io > My Account > Security), plus a `sonar-project.properties` at
 the repo root with your `sonar.organization` / `sonar.projectKey`.
 
+**Dependabot PRs never have `SONAR_TOKEN`.** GitHub withholds repo secrets from
+Dependabot-triggered workflow runs by design (the same restriction as fork
+PRs), so the scan can't authenticate on those runs. The `security` job checks
+`secrets.SONAR_TOKEN != ''` in a `has_token` step output and skips the
+`SonarCloud scan` step entirely when it's empty, rather than letting the whole
+job hard-fail on every single dependency-bump PR.
+
 ---
 
 ## Infrastructure as Code — Terraform
