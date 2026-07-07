@@ -13,6 +13,6 @@ openai-whisper==20250625
 jieba==0.42.1
 opencc-python-reimplemented==0.1.7
 requests==2.34.2
-sqlalchemy==2.0.35
+sqlalchemy==2.0.51
 psycopg2-binary==2.9.12
 python-dotenv==1.0.1
