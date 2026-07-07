@@ -13,6 +13,26 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    # Router tests (tests/test_frequency_router.py etc.) and ETL tests
+    # (tests/test_load_to_db.py, tests/test_load_sentences.py) run real SQL
+    # against Postgres -- schema.sql relies on Postgres-only features
+    # (ARRAY_AGG, DISTINCT ON, ON CONFLICT) that SQLite can't stand in for.
+    # Same DB_USER/DB_PASSWORD/DB_NAME as docker-compose's `db` service and
+    # backend/db.py's defaults, so no extra env vars are needed here.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hsk_user
+          POSTGRES_PASSWORD: changeme
+          POSTGRES_DB: hsk_frequency
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
 
@@ -42,6 +62,22 @@ jobs:
     name: Security & Quality Scan
     needs: test
     runs-on: ubuntu-latest
+    # Same reason as the `test` job: the coverage run below re-executes the
+    # DB-backed test suite, so SonarCloud's coverage input needs Postgres too.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hsk_user
+          POSTGRES_PASSWORD: changeme
+          POSTGRES_DB: hsk_frequency
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
         with:

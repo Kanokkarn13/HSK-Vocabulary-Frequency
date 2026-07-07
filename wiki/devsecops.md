@@ -34,6 +34,17 @@ Deploy is NOT a job in this workflow — see "Deployment" below.
 PRs and pushes to `master` run the same three stages. `terraform plan`/`apply`
 are **not** run in CI at all — see the IaC section below for why.
 
+The `Test` job runs against a real Postgres now (a `postgres:16-alpine`
+service container, credentials matching docker-compose's `db` service) —
+`tests/test_frequency_router.py`, `test_search_router.py`,
+`test_compare_router.py`, `test_load_to_db.py`, and `test_load_sentences.py`
+exercise every API endpoint and ETL loader function against it (happy path,
+filter combinations, empty-result and validation-error edge cases, upsert/
+rerun idempotency). `test_segment.py` and the User-Agent-blocking tests in
+`test_api.py` are pure-function tests and don't need Postgres at all. See
+[the README's Running Tests section](../README.md#running-tests) for running
+this locally.
+
 ---
 
 ## Why GitHub Actions instead of Azure Pipelines

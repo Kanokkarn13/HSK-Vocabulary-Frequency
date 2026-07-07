@@ -260,10 +260,20 @@ Full parameter docs: `http://localhost:8000/docs`
 
 ## Running Tests
 
+Most tests hit a real Postgres (the routers and ETL loaders use
+Postgres-only SQL — `ARRAY_AGG`, `DISTINCT ON`, `ON CONFLICT` — that SQLite
+can't stand in for), so start the local DB first:
+
 ```bash
-pip install -r requirements/api.txt -r requirements/etl.txt pytest httpx
+docker compose up -d db
+pip install -r requirements/api.txt -r requirements/etl.txt pytest pytest-cov httpx
 pytest tests/ -v
 ```
+
+Tests that don't touch the DB (`tests/test_segment.py`'s pure-function tests,
+the User-Agent-blocking tests in `tests/test_api.py`) still run fine without
+the `db` container. CI provisions an equivalent Postgres service container
+automatically — see [wiki/devsecops.md](wiki/devsecops.md).
 
 ---
 
