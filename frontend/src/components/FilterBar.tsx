@@ -30,7 +30,9 @@ export function FilterBar({
   onExamIdsChange,
   exams,
 }: FilterBarProps) {
-  const examLevels = [...new Set(exams.map((e) => e.hsk_level).filter((l): l is number => l != null))].sort();
+  const examLevels = [...new Set(exams.map((e) => e.hsk_level).filter((l): l is number => l != null))].sort(
+    (a, b) => a - b,
+  );
   const examOptions = exams.filter((e) => examLevel == null || e.hsk_level === examLevel);
 
   return (
