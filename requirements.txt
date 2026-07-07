@@ -2,8 +2,8 @@
 # self-contained — `-r requirements/api.txt` breaks the build (ends up trying
 # to build psycopg2 from source with no pg_config available). Keep this in
 # sync with requirements/api.txt manually.
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
+fastapi==0.139.0
+uvicorn[standard]==0.50.0
 sqlalchemy==2.0.35
 psycopg2-binary==2.9.12
 python-dotenv==1.0.1
