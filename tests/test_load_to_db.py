@@ -13,6 +13,7 @@ from etl.load_to_db import (
 def _write_csv(tmp_path, rows: list[dict]):
     import csv
 
+    tmp_path.mkdir(parents=True, exist_ok=True)
     path = tmp_path / "wordlist.csv"
     fieldnames = ["word", "pinyin", "hsk_level", "definition", "definition_th"]
     with open(path, "w", encoding="utf-8", newline="") as f:
@@ -124,7 +125,9 @@ def test_refresh_aggregates_sums_across_exams_and_builds_all_row(db_session):
     assert rows["reading"]["exam_count"] == 2
     assert rows["listening"]["total_frequency"] == 3
     assert rows["all"]["total_frequency"] == 10
-    assert rows["all"]["exam_count"] == 3
+    # 'all' groups by word only (not source_type), so the same physical exam
+    # (2020-01, reading+listening) counts once, not twice -- 2 distinct exams total
+    assert rows["all"]["exam_count"] == 2
     assert all(r["in_official_wordlist"] for r in rows.values())
 
 
