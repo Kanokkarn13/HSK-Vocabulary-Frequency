@@ -190,3 +190,30 @@ Nothing in this stack should. If you ever add anything here, check its
 pricing page for a "free tier requires X" catch (public repo, request-only
 grant, usage cap) before wiring it into the pipeline — several of the
 now-removed Azure pieces looked free until you hit exactly that kind of catch.
+
+---
+
+## Planned — OWASP ZAP (DAST)
+
+Not wired in yet. Bandit and SonarCloud are both static analysis (they read
+source code without running it); OWASP ZAP is a **dynamic** scanner — it
+attacks the running API (e.g. the deployed Vercel URL or a local instance)
+looking for issues that only show up at runtime (injection, auth bypass,
+misconfigured headers). Free and open-source, no account required; can run
+as a GitHub Actions step (`zaproxy/action-baseline`) against a preview
+deployment URL. Complements Bandit rather than overlapping with it.
+
+## Planned, deferred — Cloudflare (WAF)
+
+Cloudflare's free plan (unmetered DDoS protection, Bot Fight Mode, 5 WAF
+custom rules, 1 rate-limiting rule) would sit **in front of** Vercel as an
+extra security layer — it doesn't replace or overlap with Vercel's own
+CDN/SSL/hosting. It's on hold because Cloudflare requires DNS control over a
+domain we actually own; `hsk-vocabulary-frequency.vercel.app` is a
+Vercel-owned subdomain, so there's nothing to point at Cloudflare's
+nameservers yet. Revisit once/if a custom domain is purchased. Not a blocker
+for anything else in this stack — Bandit + ZAP + Dependabot already cover
+the code/dependency-level security bases.
+
+See [Analytics & SEO](analytics-seo.md) for the PostHog/Search
+Console/Lighthouse/Ahrefs plan (separate concern from this security stack).
