@@ -9,7 +9,7 @@ pandas==3.0.3
 # CI run failing on exactly this incompatibility -- reverted back down.
 numpy==2.4.6
 pyarrow==24.0.0
-matplotlib==3.11.0
+matplotlib==3.11.1
 pdfplumber==0.11.4
 openai-whisper==20250625
 jieba==0.42.1
