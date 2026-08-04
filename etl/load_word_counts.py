@@ -44,7 +44,10 @@ def run():
             )
         logger.info("Loaded %d exam sources", len(exams))
 
-        counts = pd.read_parquet(DATA_DIR / "processed" / "word_counts.parquet")
+        component_path = DATA_DIR / "processed" / "hsk_component_counts.parquet"
+        counts_path = component_path if component_path.exists() else DATA_DIR / "processed" / "word_counts.parquet"
+        counts = pd.read_parquet(counts_path)
+        logger.info("Using frequency artifact: %s", counts_path.name)
         hsk_wordlist = {
             r["word"]: dict(r)
             for r in session.execute(text("SELECT word, pinyin, hsk_level FROM hsk_wordlist")).mappings()

@@ -118,6 +118,49 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
+  airflow:
+    name: Airflow DAG & Compose Check
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Create CI environment file
+        run: cp .env.example .env
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Validate Airflow Compose
+        run: docker compose -f airflow/config/docker-compose.airflow.yml config --quiet
+
+      - name: Build Airflow image
+        run: docker compose -f airflow/config/docker-compose.airflow.yml build --pull airflow-scheduler
+
+      - name: Initialise Airflow metadata and pools
+        run: |
+          docker compose -f airflow/config/docker-compose.airflow.yml up -d airflow-db
+          docker compose -f airflow/config/docker-compose.airflow.yml run --rm airflow-init
+
+      - name: Assert DAG import errors are empty
+        run: |
+          docker compose -f airflow/config/docker-compose.airflow.yml run --rm airflow-scheduler \
+            bash -lc 'airflow dags list-import-errors --output json > /tmp/import-errors.json && python -c "import json; errors=json.load(open(\"/tmp/import-errors.json\")); assert not errors, errors"'
+
+      - name: Tear down Airflow CI services
+        if: always()
+        run: docker compose -f airflow/config/docker-compose.airflow.yml down -v --remove-orphans
+
+      - name: Validate DAG source syntax
+        run: python -m py_compile airflow/dags/hsk_batch_pipeline.py etl/*.py
+
+      - name: Check Airflow DAG contract
+        run: |
+          test -f airflow/config/Dockerfile
+          grep -q 'hsk_api_pool' airflow/config/docker-compose.airflow.yml
+          grep -q 'max_active_runs=1' airflow/dags/hsk_batch_pipeline.py
+
   terraform:
     name: IaC Syntax Check (Vercel + Neon)
     needs: security

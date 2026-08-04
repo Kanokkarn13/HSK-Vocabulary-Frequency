@@ -130,13 +130,13 @@ def refresh_aggregates(session: Session):
         INSERT INTO frequency_aggregates (word, hsk_level, source_type, total_frequency, exam_count, in_official_wordlist)
         SELECT
             word,
-            hsk_level,
+            MAX(hsk_level) AS hsk_level,
             source_type,
             SUM(frequency),
             COUNT(DISTINCT exam_id),
             BOOL_OR(in_official_wordlist)
         FROM word_frequencies
-        GROUP BY word, hsk_level, source_type
+        GROUP BY word, source_type
         ON CONFLICT (word, source_type)
         DO UPDATE SET
             hsk_level = EXCLUDED.hsk_level,
@@ -149,13 +149,13 @@ def refresh_aggregates(session: Session):
         INSERT INTO frequency_aggregates (word, hsk_level, source_type, total_frequency, exam_count, in_official_wordlist)
         SELECT
             word,
-            hsk_level,
+            MAX(hsk_level) AS hsk_level,
             'all',
             SUM(frequency),
             COUNT(DISTINCT exam_id),
             BOOL_OR(in_official_wordlist)
         FROM word_frequencies
-        GROUP BY word, hsk_level
+        GROUP BY word
         ON CONFLICT (word, source_type)
         DO UPDATE SET
             hsk_level = EXCLUDED.hsk_level,

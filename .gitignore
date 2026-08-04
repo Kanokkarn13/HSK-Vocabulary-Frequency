@@ -34,6 +34,13 @@ data/wordlist/*.csv
 data/processed/hsk_wordlist.csv
 data/processed/hsk_wordlist.parquet
 data/processed/hsk_word_level_lookup.csv
+data/processed/hsk_wordlist_metadata.json
+data/processed/hsk_wordlist_quarantine.csv
+
+# Batch-local ETL staging/checkpoints and source quarantine
+data/staging/
+data/current/
+data/raw/extraction_manifest.json
 
 # Whisper model cache
 ~/.cache/whisper/
@@ -50,3 +57,8 @@ infra/*.tfvars
 
 # Docker
 *.tar
+
+# Airflow generated files
+airflow/logs/
+airflow/config/airflow.cfg
+airflow/config/simple_auth_manager_passwords.json

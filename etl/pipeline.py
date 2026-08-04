@@ -21,6 +21,8 @@ from etl.load_to_db import (
     refresh_aggregates,
 )
 from etl.logging_config import get_logger
+from etl.tokenizer import DEFAULT_HMM, DEFAULT_STRATEGY
+from etl.hsk_components import attribute_counter
 
 logger = get_logger(__name__)
 
@@ -47,6 +49,7 @@ def run(source_type: str, input_dir: str, wordlist_csv: str, whisper_model: str 
             text("SELECT word, pinyin, hsk_level FROM hsk_wordlist")
         ).mappings().all()
         hsk_lookup = {r["word"]: dict(r) for r in rows}
+        hsk_levels = {word: row["hsk_level"] for word, row in hsk_lookup.items()}
 
         # Extract text
         if source_type == "reading":
@@ -54,7 +57,18 @@ def run(source_type: str, input_dir: str, wordlist_csv: str, whisper_model: str 
         else:
             texts = transcribe_all(input_dir, whisper_model)
 
-        per_source = count_per_source(texts)
+        # Jieba remains the first pass; the HSK snapshot repairs only local
+        # boundaries where adjacent tokens form a known multi-character word.
+        per_source = count_per_source(
+            texts,
+            hsk_words=set(hsk_lookup),
+            hmm=DEFAULT_HMM,
+            strategy=DEFAULT_STRATEGY,
+        )
+        per_source = {
+            filename: attribute_counter(counter, hsk_levels)
+            for filename, counter in per_source.items()
+        }
 
         for filename, counter in per_source.items():
             year, hsk_level = parse_filename_metadata(filename)
