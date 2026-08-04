@@ -252,11 +252,17 @@ def run_extraction(
     frame = pd.DataFrame(rows)
     quality = _validate_raw(frame, require_sources=True)
     _atomic_parquet(frame, stage / "raw_extractions.parquet")
-    # Preserve the other source type when PDF and audio run as separate tasks.
+    # Preserve the other source type when PDF and audio run as separate tasks,
+    # but do not preserve deleted/moved files from the source type processed by
+    # this task.  Keeping missing rows here would make a deleted source remain
+    # in every future raw snapshot and production publish.
+    processed_types = source_types or {"reading", "listening"}
+    current_source_keys = {source["source_key"] for source in inventory}
     merged_sources = {
         row["source_key"]: row
         for row in previous.get("sources", [])
-        if row.get("source_key") not in {source["source_key"] for source in inventory}
+        if row.get("source_type") not in processed_types
+        or row.get("source_key") in current_source_keys
     }
     merged_sources.update({row["source_key"]: row for row in rows})
     manifest = {

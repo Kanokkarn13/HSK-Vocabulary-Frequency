@@ -47,6 +47,47 @@ def test_manifest_reuses_unchanged_source_across_batches(tmp_path: Path):
     assert second["row_count"] == 1
 
 
+def test_manifest_removes_deleted_source_from_next_snapshot(tmp_path: Path):
+    reading = tmp_path / "reading"
+    listening = tmp_path / "listening"
+    reading.mkdir()
+    listening.mkdir()
+    keep = listening / "HSK3_keep.mp3"
+    remove = listening / "HSK3_remove.mp3"
+    keep.write_bytes(b"keep")
+    remove.write_bytes(b"remove")
+    manifest = tmp_path / "manifest.json"
+
+    def transcriber(path):
+        return f"text for {path.name}"
+
+    run_extraction(
+        batch_id="batch-1",
+        reading_dir=reading,
+        listening_dir=listening,
+        staging_root=tmp_path / "staging",
+        manifest_path=manifest,
+        transcriber_factory=lambda: transcriber,
+        require_sources=True,
+    )
+    remove.unlink()
+
+    second = run_extraction(
+        batch_id="batch-2",
+        reading_dir=reading,
+        listening_dir=listening,
+        staging_root=tmp_path / "staging",
+        manifest_path=manifest,
+        transcriber_factory=lambda: (_ for _ in ()).throw(AssertionError("should reuse")),
+        require_sources=True,
+    )
+
+    assert second["reused_source_count"] == 1
+    snapshot = build_raw_snapshot(manifest, tmp_path / "raw.parquet")
+    assert snapshot["row_count"] == 1
+    assert set(pd.read_parquet(tmp_path / "raw.parquet")["filename"]) == {keep.name}
+
+
 def test_manifest_quarantines_failed_source_without_advancing_manifest(tmp_path: Path):
     reading = tmp_path / "reading"
     listening = tmp_path / "listening"

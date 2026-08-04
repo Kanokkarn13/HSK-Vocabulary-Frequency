@@ -6,10 +6,11 @@ import logging
 import json
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+import pendulum
 from airflow.sdk import dag, get_current_context, task
 from airflow.sdk.exceptions import AirflowFailException, AirflowSkipException
 
@@ -72,7 +73,7 @@ SCHEDULE = "0 2 * * 1" if _env_bool("HSK_AIRFLOW_ENABLE_SCHEDULE") else None
 
 @dag(
     dag_id="hsk_batch_pipeline",
-    start_date=datetime(2026, 1, 1),
+    start_date=pendulum.datetime(2026, 1, 1, tz="Asia/Bangkok"),
     schedule=SCHEDULE,
     catchup=False,
     max_active_runs=1,
@@ -263,12 +264,36 @@ def hsk_batch_pipeline():
 
     @task(execution_timeout=timedelta(minutes=10), pool="hsk_db_write_pool")
     def publish_database(stage_state: dict[str, object]) -> dict[str, object]:
+        from etl.publish_gate import publish_enabled
+
+        batch_id = str(stage_state["batch_id"])
+        if not publish_enabled():
+            LOGGER.warning(
+                "Production publish is disabled (HSK_PUBLISH_ENABLED is not true); "
+                "staged batch %s will be retained without replacing production",
+                batch_id,
+            )
+            return {
+                "status": "skipped",
+                "reason": "HSK_PUBLISH_ENABLED=false",
+                "batch_id": batch_id,
+                "staging_counts": stage_state.get("staging_counts", {}),
+            }
+
         from etl.stage_database import publish_batch
 
-        return publish_batch(str(stage_state["batch_id"]))
+        return publish_batch(batch_id)
 
     @task(execution_timeout=timedelta(minutes=15))
     def validate_database(publish_state: dict[str, object]) -> dict[str, object]:
+        if publish_state.get("status") == "skipped":
+            LOGGER.info("Production validation skipped because publish was disabled")
+            return {
+                "status": "skipped",
+                "reason": publish_state.get("reason", "publish_disabled"),
+                "batch_id": publish_state.get("batch_id"),
+            }
+
         from sqlalchemy import text
 
         from etl.load_to_db import get_engine
@@ -305,6 +330,9 @@ def hsk_batch_pipeline():
 
     @task(execution_timeout=timedelta(minutes=5))
     def api_smoke_test(_database_state: dict[str, object]) -> dict[str, str]:
+        if _database_state.get("status") == "skipped":
+            return {"status": "skipped", "reason": "publish_disabled"}
+
         smoke_url = os.getenv("HSK_API_SMOKE_URL", "").strip()
         if not smoke_url:
             LOGGER.info("HSK_API_SMOKE_URL is not configured; API smoke test skipped")

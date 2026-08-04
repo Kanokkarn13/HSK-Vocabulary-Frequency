@@ -34,10 +34,12 @@ x-airflow-common: &airflow-common
     DB_PASSWORD: ${DB_PASSWORD:-changeme}
     DB_SSLMODE: ${DB_SSLMODE:-}
     # Full ETL safety switches.  Scheduling stays off until three manual runs
-    # pass; then set HSK_AIRFLOW_ENABLE_SCHEDULE=true in .env.
+    # pass; then set HSK_AIRFLOW_ENABLE_SCHEDULE=true in .env. Production
+    # source/API checks and publishing are opt-in and fail closed by default.
     HSK_AIRFLOW_ENABLE_SCHEDULE: ${HSK_AIRFLOW_ENABLE_SCHEDULE:-false}
-    HSK_REQUIRE_SOURCE_FILES: ${HSK_REQUIRE_SOURCE_FILES:-false}
-    HSK_WORDLIST_REQUIRE_API: ${HSK_WORDLIST_REQUIRE_API:-false}
+    HSK_REQUIRE_SOURCE_FILES: ${HSK_REQUIRE_SOURCE_FILES:-true}
+    HSK_WORDLIST_REQUIRE_API: ${HSK_WORDLIST_REQUIRE_API:-true}
+    HSK_PUBLISH_ENABLED: ${HSK_PUBLISH_ENABLED:-false}
     HSK_WORDLIST_FORCE_REFRESH: ${HSK_WORDLIST_FORCE_REFRESH:-false}
     HSK_WORDLIST_MAX_AGE_HOURS: ${HSK_WORDLIST_MAX_AGE_HOURS:-168}
     HSK_WORDLIST_MAX_INVALID_ROWS: ${HSK_WORDLIST_MAX_INVALID_ROWS:-10}
