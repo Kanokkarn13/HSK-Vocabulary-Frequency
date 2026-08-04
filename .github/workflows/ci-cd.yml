@@ -62,22 +62,6 @@ jobs:
     name: Security & Quality Scan
     needs: test
     runs-on: ubuntu-latest
-    # Same reason as the `test` job: the coverage run below re-executes the
-    # DB-backed test suite, so SonarCloud's coverage input needs Postgres too.
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: hsk_user
-          POSTGRES_PASSWORD: changeme
-          POSTGRES_DB: hsk_frequency
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -89,8 +73,16 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install "setuptools<81"
-          pip install --no-build-isolation -r requirements/api.txt -r requirements/etl.txt bandit pytest pytest-cov httpx
+          pip install bandit
+
+      - name: Download tested coverage report
+        uses: actions/download-artifact@v7
+        with:
+          name: coverage-report
+          path: .
+
+      - name: Verify coverage report
+        run: test -s coverage.xml
 
       - name: Bandit SAST scan
         run: bandit -r backend/ etl/ -f json -o bandit-report.json || true
@@ -99,9 +91,6 @@ jobs:
         with:
           name: security-reports
           path: bandit-report.json
-
-      - name: Coverage report (input for SonarCloud)
-        run: pytest tests/ --cov=backend --cov=etl --cov-report=xml -v || true
 
       # Dependabot-triggered runs don't get repo secrets (GitHub restricts this
       # by design, same as fork PRs), so SONAR_TOKEN is empty on those runs --
