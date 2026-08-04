@@ -58,6 +58,20 @@ infra/*.tfvars
 # Docker
 *.tar
 
+# Local editor, assistant, and type-checker state
+.vscode/settings.json
+.claude/settings.local.json
+.claude/*.lock
+pyrightconfig.json
+
+# Local Airflow compose override (the deployable file lives in airflow/config/)
+airflow/docker-compose.yml
+
+# Regenerable ETL validation reports; keep hand-written fixtures force-addable
+data/validation/*
+data/processed/hsk_component_counts.csv
+data/processed/hsk_component_counts.parquet
+
 # Airflow generated files
 airflow/logs/
 airflow/config/airflow.cfg
