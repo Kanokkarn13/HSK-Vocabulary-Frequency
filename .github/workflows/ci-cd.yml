@@ -146,7 +146,7 @@ jobs:
       - name: Assert DAG import errors are empty
         run: |
           docker compose -f airflow/config/docker-compose.airflow.yml run --rm airflow-scheduler \
-            bash -lc 'airflow dags list-import-errors --output json > /tmp/import-errors.json && python -c "import json; errors=json.load(open(\"/tmp/import-errors.json\")); assert not errors, errors"'
+            bash -lc 'airflow dags list-import-errors --output json > /tmp/import-errors.log && python -c "import json; lines=open(\"/tmp/import-errors.log\", encoding=\"utf-8\").read().splitlines(); errors=next(json.loads(line) for line in reversed(lines) if line.strip().startswith((\"[]\", \"[{\"))); assert not errors, errors"'
 
       - name: Tear down Airflow CI services
         if: always()

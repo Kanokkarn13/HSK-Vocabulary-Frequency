@@ -60,7 +60,6 @@ def build_http_session() -> requests.Session:
     )
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retry))
-    session.mount("http://", HTTPAdapter(max_retries=retry))
     return session
 
 
@@ -99,6 +98,8 @@ def fetch_records(
 
     if not api_url.strip():
         raise ValueError("HSK_WORDLIST_API_URL is empty")
+    if not api_url.lower().startswith("https://"):
+        raise ValueError("Wordlist API URL must use HTTPS")
     if per_page <= 0:
         raise ValueError("per_page must be positive")
 
