@@ -1,0 +1,108 @@
+name: hsk-airflow
+
+x-airflow-common: &airflow-common
+  build:
+    context: ../..
+    dockerfile: airflow/config/Dockerfile
+  user: "${AIRFLOW_UID:-50000}:0"
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  env_file:
+    - ../../.env
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+    # Airflow 3 signs internal execution-API tokens with this key. It must be
+    # identical in the API server, scheduler, DAG processor, and triggerer.
+    # Override AIRFLOW_API_SECRET_KEY in .env for anything beyond local use.
+    AIRFLOW__API__SECRET_KEY: ${AIRFLOW_API_SECRET_KEY:-hsk-airflow-local-dev-secret-key-change-before-production-20260804-64chars}
+    # Airflow 3 execution requests use this JWT signing key specifically.
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_JWT_SECRET:-hsk-airflow-local-jwt-secret-key-change-before-production-20260804-64chars}
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: "airflow:admin"
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/config/simple_auth_manager_passwords.json
+    PYTHONPATH: /opt/airflow/project
+
+    # The application PostgreSQL is exposed by Docker Desktop on the host.
+    # The ETL code uses these variables when loading hsk_frequency.
+    DB_HOST: host.docker.internal
+    DB_PORT: "5432"
+    DB_NAME: ${DB_NAME:-hsk_frequency}
+    DB_USER: ${DB_USER:-hsk_user}
+    DB_PASSWORD: ${DB_PASSWORD:-changeme}
+    DB_SSLMODE: ${DB_SSLMODE:-}
+    # Full ETL safety switches.  Scheduling stays off until three manual runs
+    # pass; then set HSK_AIRFLOW_ENABLE_SCHEDULE=true in .env. Production
+    # source/API checks and publishing are opt-in and fail closed by default.
+    HSK_AIRFLOW_ENABLE_SCHEDULE: ${HSK_AIRFLOW_ENABLE_SCHEDULE:-false}
+    HSK_REQUIRE_SOURCE_FILES: ${HSK_REQUIRE_SOURCE_FILES:-true}
+    HSK_WORDLIST_REQUIRE_API: ${HSK_WORDLIST_REQUIRE_API:-true}
+    HSK_PUBLISH_ENABLED: ${HSK_PUBLISH_ENABLED:-false}
+    HSK_WORDLIST_FORCE_REFRESH: ${HSK_WORDLIST_FORCE_REFRESH:-false}
+    HSK_WORDLIST_MAX_AGE_HOURS: ${HSK_WORDLIST_MAX_AGE_HOURS:-168}
+    HSK_WORDLIST_MAX_INVALID_ROWS: ${HSK_WORDLIST_MAX_INVALID_ROWS:-10}
+    HSK_WORDLIST_MAX_INVALID_RATE: ${HSK_WORDLIST_MAX_INVALID_RATE:-0.01}
+    HSK_MIN_MATCH_RATE: ${HSK_MIN_MATCH_RATE:-0.85}
+    HSK_MAX_LEVEL1_SHARE: ${HSK_MAX_LEVEL1_SHARE:-0.60}
+    HSK_TRANSFORM_BASELINE_PATH: ${HSK_TRANSFORM_BASELINE_PATH:-}
+    HSK_MATCH_RATE_BASELINE_TOLERANCE: ${HSK_MATCH_RATE_BASELINE_TOLERANCE:-0.01}
+    HSK_API_SMOKE_URL: ${HSK_API_SMOKE_URL:-}
+    HSK_ALERT_WEBHOOK_URL: ${HSK_ALERT_WEBHOOK_URL:-}
+  volumes:
+    - ../dags:/opt/airflow/dags
+    - ../logs:/opt/airflow/logs
+    - ../plugins:/opt/airflow/plugins
+    - ../config:/opt/airflow/config
+    - ../..:/opt/airflow/project
+  depends_on:
+    airflow-db:
+      condition: service_healthy
+
+services:
+  airflow-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_metadata_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow pools set hsk_api_pool 1 "HSK wordlist API"
+        airflow pools set hsk_whisper_pool 1 "HSK audio transcription"
+        airflow pools set hsk_db_write_pool 1 "HSK database writer"
+
+  airflow-api-server:
+    <<: *airflow-common
+    command: api-server --port 8080
+    ports:
+      - "${AIRFLOW_WEB_PORT:-8080}:8080"
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+
+  airflow-triggerer:
+    <<: *airflow-common
+    command: triggerer
+
+volumes:
+  airflow_metadata_data:

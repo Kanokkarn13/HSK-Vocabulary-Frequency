@@ -55,7 +55,9 @@ workflows:
 
 - **`etl/load_word_counts.py`** — the one actually used. Bridges the
   notebook-based batch workflow (run notebooks 01 and 02, then this script)
-  into the DB all at once. This is what the [Setup Guide](setup.md) and
+  into the DB all at once. When `hsk_component_counts.parquet` exists, the
+  loader uses that HSK-attributed artifact; otherwise it falls back to
+  `word_counts.parquet`. This is what the [Setup Guide](setup.md) and
   main [README](../README.md) Quick Start use.
 - **`etl/pipeline.py`** — a CLI entry point (`python -m etl.pipeline
   --source-type reading --input-dir data/reading`) for adding *one exam at a
