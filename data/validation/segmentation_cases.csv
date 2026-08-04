@@ -1,0 +1,21 @@
+case_id,text,expected_tokens,reason
+001,我觉得这个问题很重要,我|觉得|这个|问题|很|重要,common HSK multi-character words
+002,我在图书馆学习,我|在|图书馆|学习,compound noun
+003,请填写答题卡,请|填写|答题卡,exam vocabulary
+004,他每天上下班,他|每天|上下班,compound verb
+005,我们一起去动物园,我们|一起|去|动物园,common sentence
+006,这是会议室,这|是|会议室,compound noun
+007,我想知道多长时间,我|想|知道|多长时间,compound time phrase
+008,谢谢您的帮助,谢谢|您|的|帮助,function word boundary
+009,她喜欢看电影,她|喜欢|看|电影,common sentence
+010,现在开始考试,现在|开始|考试,exam vocabulary
+011,请注意听力考试,请|注意|听力|考试,exam vocabulary
+012,我每天都很忙,我|每天|都|很|忙,function words
+013,这个问题不太难,这个|问题|不太|难,compound adverb
+014,我们要早点儿回家,我们|要|早点儿|回家,erhua word
+015,他是年轻人,他|是|年轻人,compound noun
+016,我在办公室工作,我|在|办公室|工作,compound noun
+017,她正在做作业,她|正在|做|作业,common sentence
+018,我已经准备好了,我|已经|准备|好|了,aspect boundary
+019,他们正在开会,他们|正在|开会,compound verb
+020,我想借这本书,我|想|借|这|本|书,classifier boundary

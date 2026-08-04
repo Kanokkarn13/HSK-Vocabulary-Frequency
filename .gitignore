@@ -42,6 +42,15 @@ data/staging/
 data/current/
 data/raw/extraction_manifest.json
 
+# Diagnostic output from scripts/evaluate_*.py -- regenerable, and the boundary
+# dumps are large. The hand-written segmentation cases are the one input here,
+# so they stay tracked and the case_* metrics reproduce from a clean checkout.
+# Ignore the *contents*, not the directory: git won't re-include a file whose
+# parent directory is itself excluded, so `data/validation/` would bury the
+# negation below.
+data/validation/*
+!data/validation/segmentation_cases.csv
+
 # Whisper model cache
 ~/.cache/whisper/
 
