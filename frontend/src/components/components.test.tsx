@@ -133,6 +133,7 @@ describe("word detail modal", () => {
           source_type: "reading",
           filename: "reading.pdf",
           exam_id: "2024-01",
+          exam_hsk_level: 2,
         },
       ],
       sentence_total: 1,
