@@ -40,6 +40,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             หน้านี้ไม่สามารถแสดงผลได้ กรุณาลองโหลดหน้าใหม่อีกครั้ง
           </p>
           <button
+            type="button"
             onClick={this.handleReload}
             className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
           >

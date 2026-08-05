@@ -143,6 +143,7 @@ export function TopWordsTable({ items }: { items: TopWordRow[] }) {
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-center gap-1">
               <button
+                type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 aria-label="หน้าก่อนหน้า"
@@ -159,6 +160,7 @@ export function TopWordsTable({ items }: { items: TopWordRow[] }) {
                 ) : (
                   <button
                     key={p}
+                    type="button"
                     onClick={() => setPage(p)}
                     className={`h-8 min-w-8 rounded-lg px-2 text-sm font-medium tabular-nums transition ${
                       p === currentPage
@@ -172,6 +174,7 @@ export function TopWordsTable({ items }: { items: TopWordRow[] }) {
               )}
 
               <button
+                type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 aria-label="หน้าถัดไป"

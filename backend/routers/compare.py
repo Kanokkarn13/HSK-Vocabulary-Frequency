@@ -31,26 +31,28 @@ def compare_wordlist(
     if source_type != "all":
         params["source_type"] = source_type
 
-    not_in_wordlist = db.execute(
-        text(f"""
+    not_in_query = f"""
             SELECT word, hsk_level, total_frequency, exam_count
             FROM frequency_aggregates fa
             WHERE in_official_wordlist = FALSE {level_filter} {source_filter}
             ORDER BY total_frequency DESC
             LIMIT :limit
-        """),
+        """  # nosec B608 - filters are fixed allow-list fragments; values use bind params
+    not_in_wordlist = db.execute(
+        text(not_in_query),
         params,
     ).mappings().all()
 
-    in_wordlist = db.execute(
-        text(f"""
+    in_query = f"""
             SELECT fa.word, fa.hsk_level, fa.total_frequency, fa.exam_count, hw.pinyin
             FROM frequency_aggregates fa
             JOIN hsk_wordlist hw ON fa.word = hw.word
             WHERE fa.in_official_wordlist = TRUE {level_filter} {source_filter}
             ORDER BY fa.total_frequency DESC
             LIMIT :limit
-        """),
+        """  # nosec B608 - filters are fixed allow-list fragments; values use bind params
+    in_wordlist = db.execute(
+        text(in_query),
         params,
     ).mappings().all()
 
@@ -89,8 +91,7 @@ def _compare_live(
 
     where = " AND ".join(conditions)
 
-    not_in_wordlist = db.execute(
-        text(f"""
+    not_in_query = f"""
             SELECT wf.word, wf.hsk_level, SUM(wf.frequency) AS total_frequency,
                    COUNT(DISTINCT wf.exam_id) AS exam_count
             FROM word_frequencies wf
@@ -99,12 +100,13 @@ def _compare_live(
             GROUP BY wf.word, wf.hsk_level
             ORDER BY total_frequency DESC
             LIMIT :limit
-        """),
+        """  # nosec B608 - conditions are fixed predicates; values use bind params
+    not_in_wordlist = db.execute(
+        text(not_in_query),
         params,
     ).mappings().all()
 
-    in_wordlist = db.execute(
-        text(f"""
+    in_query = f"""
             SELECT wf.word, wf.hsk_level, SUM(wf.frequency) AS total_frequency,
                    COUNT(DISTINCT wf.exam_id) AS exam_count, MIN(hw.pinyin) AS pinyin
             FROM word_frequencies wf
@@ -114,7 +116,9 @@ def _compare_live(
             GROUP BY wf.word, wf.hsk_level
             ORDER BY total_frequency DESC
             LIMIT :limit
-        """),
+        """  # nosec B608 - conditions are fixed predicates; values use bind params
+    in_wordlist = db.execute(
+        text(in_query),
         params,
     ).mappings().all()
 

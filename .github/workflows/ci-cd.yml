@@ -71,6 +71,12 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Download tested coverage report
+        uses: actions/download-artifact@v7
+        with:
+          name: coverage-report
+          path: .
+
       - name: Install dependencies
         run: |
           pip install bandit
@@ -85,7 +91,7 @@ jobs:
         run: test -s coverage.xml
 
       - name: Bandit SAST scan
-        run: bandit -r backend/ etl/ -f json -o bandit-report.json || true
+        run: bandit -r backend/ etl/ -f json -o bandit-report.json
 
       - uses: actions/upload-artifact@v7
         with:

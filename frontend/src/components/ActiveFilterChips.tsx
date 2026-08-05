@@ -17,6 +17,7 @@ function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
     <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 py-1 pl-3 pr-1.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-200 dark:bg-brand-500/10 dark:text-brand-300 dark:ring-brand-500/30">
       {label}
       <button
+        type="button"
         onClick={onRemove}
         aria-label={`ลบตัวกรอง ${label}`}
         className="flex h-4 w-4 items-center justify-center rounded-full transition hover:bg-brand-100 dark:hover:bg-brand-500/20"
@@ -74,6 +75,7 @@ export function ActiveFilterChips({
           />
         ))}
       <button
+        type="button"
         onClick={() => {
           onHskLevelChange(null);
           onSourceTypeChange("all");

@@ -62,14 +62,12 @@ export function WordDetailModal({ word, onClose }: { word: string; onClose: () =
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={`รายละเอียดคำว่า ${word}`}
     >
       <div
         className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-xl dark:border-ink-700 dark:bg-ink-900"
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-ink-100 p-5 dark:border-ink-800">
           <div>
@@ -100,6 +98,7 @@ export function WordDetailModal({ word, onClose }: { word: string; onClose: () =
             )}
           </div>
           <button
+            type="button"
             onClick={onClose}
             aria-label="ปิด"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-600 dark:hover:bg-ink-800 dark:hover:text-ink-300"

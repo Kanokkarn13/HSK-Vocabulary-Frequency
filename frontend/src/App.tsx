@@ -208,6 +208,7 @@ export default function App() {
 
       {!filterBarVisible && !filterSheetOpen && (
         <button
+          type="button"
           onClick={() => setFilterSheetOpen(true)}
           className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-700"
         >
@@ -224,18 +225,17 @@ export default function App() {
       {filterSheetOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
-          onClick={() => setFilterSheetOpen(false)}
           role="dialog"
           aria-modal="true"
           aria-label="ตัวกรอง"
         >
           <div
             className="max-h-[85vh] w-full overflow-y-auto overflow-x-hidden rounded-t-2xl bg-[#faf8f6] p-4 pb-6 shadow-xl sm:max-w-2xl sm:rounded-2xl dark:bg-ink-950"
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-ink-700 dark:text-ink-200">ตัวกรอง</h3>
               <button
+                type="button"
                 onClick={() => setFilterSheetOpen(false)}
                 aria-label="ปิด"
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-600 dark:hover:bg-ink-800 dark:hover:text-ink-300"
@@ -245,6 +245,7 @@ export default function App() {
             </div>
             <FilterBar {...filterBarProps} />
             <button
+              type="button"
               onClick={() => setFilterSheetOpen(false)}
               className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
             >
