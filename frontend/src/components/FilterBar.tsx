@@ -44,6 +44,7 @@ export function FilterBar({
           </span>
           <div className="flex gap-1.5">
             <button
+              type="button"
               onClick={() => onHskLevelChange(null)}
               className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
                 hskLevel === null
@@ -56,6 +57,7 @@ export function FilterBar({
             {[1, 2, 3, 4, 5, 6].map((lvl) => (
               <button
                 key={lvl}
+                type="button"
                 onClick={() => onHskLevelChange(lvl)}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
                   hskLevel === lvl
@@ -77,6 +79,7 @@ export function FilterBar({
             {SOURCE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                type="button"
                 onClick={() => onSourceTypeChange(opt.value)}
                 className={`rounded-full px-3 py-1 text-sm font-medium transition ${
                   sourceType === opt.value
@@ -98,6 +101,7 @@ export function FilterBar({
           </span>
           <div className="flex gap-1.5">
             <button
+              type="button"
               onClick={() => {
                 onExamLevelChange(null);
                 onExamIdsChange([]);
@@ -113,6 +117,7 @@ export function FilterBar({
             {examLevels.map((lvl) => (
               <button
                 key={lvl}
+                type="button"
                 onClick={() => {
                   onExamLevelChange(lvl);
                   onExamIdsChange([]);

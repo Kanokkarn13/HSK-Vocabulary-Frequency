@@ -1,5 +1,6 @@
 from collections import Counter
 
+import pytest
 from sqlalchemy import text
 
 from etl.load_to_db import (
@@ -76,6 +77,19 @@ def test_load_wordlist_csv_upsert_updates_existing_word(db_session, tmp_path):
     assert row["pinyin"] == "new"
     assert row["hsk_level"] == 2
     assert row["definition"] == "updated"
+
+
+def test_load_wordlist_csv_rejects_unvalidated_input_path(tmp_path):
+    """CLI-style paths must resolve to existing CSV files before opening."""
+    with pytest.raises(ValueError, match="CSV input (path cannot be resolved|must be an existing \\.csv file)"):
+        load_wordlist_csv(tmp_path / "missing.txt", None)
+
+
+def test_load_wordlist_csv_rejects_existing_non_csv(tmp_path):
+    non_csv = tmp_path / "wordlist.txt"
+    non_csv.write_text("word\n你好\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="existing \\.csv file"):
+        load_wordlist_csv(non_csv, None)
 
 
 def test_upsert_exam_source_insert_then_update(db_session):

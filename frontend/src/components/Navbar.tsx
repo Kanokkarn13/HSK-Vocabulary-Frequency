@@ -28,6 +28,7 @@ export function Navbar({ dark, onToggleDark, examCount }: NavbarProps) {
           </span>
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={onToggleDark}
               className="flex h-7 w-7 items-center justify-center rounded-full border border-ink-700 text-ink-300 transition hover:border-ink-500 hover:bg-ink-800 hover:text-white"
               aria-label="Toggle dark mode"

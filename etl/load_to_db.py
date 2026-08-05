@@ -12,6 +12,25 @@ from etl.logging_config import get_logger
 logger = get_logger(__name__)
 
 
+def _validated_csv_path(csv_path: str | Path) -> Path:
+    """Resolve and validate a CSV input before opening it.
+
+    The path is supplied by the batch CLI, so validate the resolved target
+    rather than passing the raw argument directly to ``open``.  This prevents
+    traversal through missing/intermediate path components and rejects inputs
+    that are not regular CSV files.
+    """
+    candidate = Path(csv_path).expanduser()
+    try:
+        resolved = candidate.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ValueError(f"CSV input path cannot be resolved: {csv_path!r}") from exc
+
+    if not resolved.is_file() or resolved.suffix.lower() != ".csv":
+        raise ValueError(f"CSV input must be an existing .csv file: {csv_path!r}")
+    return resolved
+
+
 def get_engine():
     url = (
         f"postgresql://{os.getenv('DB_USER', 'hsk_user')}:"
@@ -29,7 +48,8 @@ def get_engine():
 def load_wordlist_csv(csv_path: str | Path, session: Session) -> set[str]:
     """Load HSK wordlist snapshot CSV into hsk_wordlist table. Returns set of words."""
     words = set()
-    with open(csv_path, encoding="utf-8", newline="") as f:
+    validated_path = _validated_csv_path(csv_path)
+    with validated_path.open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
             word = row["word"].strip()
