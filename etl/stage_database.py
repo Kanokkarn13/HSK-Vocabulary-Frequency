@@ -71,7 +71,8 @@ def _clear_batch(session: Session, batch_id: str) -> None:
         "etl_exam_sources_stage",
         "etl_hsk_wordlist_stage",
     ):
-        session.execute(text(f"DELETE FROM {table} WHERE batch_id = :batch_id"), {"batch_id": batch_id})
+        # The table name comes from a fixed tuple; batch_id remains bound.
+        session.execute(text(f"DELETE FROM {table} WHERE batch_id = :batch_id"), {"batch_id": batch_id})  # nosec B608
 
 
 def _execute_many(
@@ -249,7 +250,8 @@ def validate_stage(session: Session, batch_id: str) -> dict[str, Any]:
         "etl_exam_sentences_stage",
     ):
         counts[table] = int(
-            session.execute(text(f"SELECT COUNT(*) FROM {table} WHERE batch_id = :batch_id"), {"batch_id": batch_id}).scalar_one()
+            # The table name comes from a fixed tuple; batch_id remains bound.
+            session.execute(text(f"SELECT COUNT(*) FROM {table} WHERE batch_id = :batch_id"), {"batch_id": batch_id}).scalar_one()  # nosec B608
         )
         if counts[table] == 0:
             raise ValueError(f"Staging quality check failed: {table} is empty")
@@ -267,7 +269,8 @@ def publish_batch(batch_id: str) -> dict[str, Any]:
             # Delete in FK-safe order. The transaction keeps the previous
             # committed dataset visible until all inserts succeed.
             for table in ("exam_sentences", "frequency_aggregates", "word_frequencies", "exam_sources", "hsk_wordlist"):
-                session.execute(text(f"DELETE FROM {table}"))
+                # The table name comes from a fixed tuple.
+                session.execute(text(f"DELETE FROM {table}"))  # nosec B608
             session.execute(text("""
                 INSERT INTO hsk_wordlist (word, pinyin, hsk_level, definition, definition_th)
                 SELECT word, pinyin, hsk_level, definition, definition_th
@@ -313,7 +316,8 @@ def publish_batch(batch_id: str) -> dict[str, Any]:
                 FROM etl_exam_sentences_stage WHERE batch_id = :batch_id
             """), {"batch_id": batch_id})
             production_counts = {
-                table: int(session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one())
+                # The table name comes from a fixed tuple.
+                table: int(session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one())  # nosec B608
                 for table in (
                     "hsk_wordlist",
                     "exam_sources",

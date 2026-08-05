@@ -55,8 +55,7 @@ def top_words(
         conditions.append("fa.source_type = 'all'")
 
     where = " AND ".join(conditions)
-    rows = db.execute(
-        text(f"""
+    rows_query = f"""
             SELECT fa.word, fa.hsk_level, fa.source_type, fa.total_frequency,
                    fa.exam_count, fa.in_official_wordlist, hw.pinyin
             FROM frequency_aggregates fa
@@ -64,12 +63,15 @@ def top_words(
             WHERE {where}
             ORDER BY fa.total_frequency DESC
             LIMIT :limit
-        """),
+        """  # nosec B608 - conditions are fixed predicates; values use bind params
+    rows = db.execute(
+        text(rows_query),
         params,
     ).mappings().all()
 
+    count_query = f"SELECT COUNT(*) FROM frequency_aggregates fa WHERE {where}"  # nosec B608 - where is built from fixed predicates
     total_count = db.execute(
-        text(f"SELECT COUNT(*) FROM frequency_aggregates fa WHERE {where}"),
+        text(count_query),
         {k: v for k, v in params.items() if k != "limit"},
     ).scalar_one()
 
@@ -105,8 +107,7 @@ def _top_words_live(
         params["hsk_level"] = hsk_level
 
     where = " AND ".join(conditions)
-    rows = db.execute(
-        text(f"""
+    rows_query = f"""
             SELECT
                 wf.word,
                 wf.hsk_level,
@@ -119,20 +120,23 @@ def _top_words_live(
             JOIN exam_sources es ON wf.exam_id = es.exam_id AND wf.source_type = es.source_type
             LEFT JOIN hsk_wordlist hw ON wf.word = hw.word
             WHERE {where}
-            GROUP BY wf.word, wf.hsk_level
+                GROUP BY wf.word, wf.hsk_level
             ORDER BY total_frequency DESC
             LIMIT :limit
-        """),
+        """  # nosec B608 - conditions are fixed predicates; values use bind params
+    rows = db.execute(
+        text(rows_query),
         params,
     ).mappings().all()
 
-    total_count = db.execute(
-        text(f"""
+    count_query = f"""
             SELECT COUNT(DISTINCT wf.word)
             FROM word_frequencies wf
             JOIN exam_sources es ON wf.exam_id = es.exam_id AND wf.source_type = es.source_type
             WHERE {where}
-        """),
+        """  # nosec B608 - conditions are fixed predicates; values use bind params
+    total_count = db.execute(
+        text(count_query),
         {k: v for k, v in params.items() if k != "limit"},
     ).scalar_one()
 
