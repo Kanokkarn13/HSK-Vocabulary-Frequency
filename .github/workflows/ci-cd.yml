@@ -53,10 +53,23 @@ jobs:
       - name: Run tests
         run: pytest tests/ --cov=backend --cov=etl --cov-report=xml -v
 
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend tests with coverage
+        working-directory: frontend
+        run: npm run test:coverage
+
+      - name: Normalize frontend coverage paths for SonarCloud
+        run: sed -i -e 's#^SF:src/#SF:frontend/src/#' -e 's#\\\\#/#g' frontend/coverage/lcov.info
+
       - uses: actions/upload-artifact@v7
         with:
           name: coverage-report
-          path: coverage.xml
+          path: |
+            coverage.xml
+            frontend/coverage/lcov.info
 
   security:
     name: Security & Quality Scan
