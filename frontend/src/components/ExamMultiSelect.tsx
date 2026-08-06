@@ -3,9 +3,9 @@ import type { ExamRow } from "../api/types";
 import { LEVEL_STYLES } from "./HskBadge";
 
 interface ExamMultiSelectProps {
-  exams: ExamRow[];
-  selected: string[];
-  onChange: (examIds: string[]) => void;
+  readonly exams: readonly ExamRow[];
+  readonly selected: readonly string[];
+  readonly onChange: (examIds: string[]) => void;
 }
 
 const NO_LEVEL_STYLE =
@@ -25,7 +25,13 @@ function CheckIcon() {
   );
 }
 
-export function ExamMultiSelect({ exams, selected, onChange }: ExamMultiSelectProps) {
+function getButtonLabel(selected: readonly string[]): string {
+  if (selected.length === 0) return "ทุกข้อสอบ";
+  if (selected.length === 1) return selected[0];
+  return `เลือกแล้ว ${selected.length} ชุด`;
+}
+
+export function ExamMultiSelect({ exams, selected, onChange }: Readonly<ExamMultiSelectProps>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,12 +80,7 @@ export function ExamMultiSelect({ exams, selected, onChange }: ExamMultiSelectPr
     );
   };
 
-  const buttonLabel =
-    selected.length === 0
-      ? "ทุกข้อสอบ"
-      : selected.length === 1
-        ? selected[0]
-        : `เลือกแล้ว ${selected.length} ชุด`;
+  const buttonLabel = getButtonLabel(selected);
 
   return (
     <div ref={containerRef} className="relative">

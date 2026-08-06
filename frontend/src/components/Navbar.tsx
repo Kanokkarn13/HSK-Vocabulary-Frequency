@@ -1,12 +1,12 @@
 import { MoonIcon, SunIcon } from "./icons";
 
 interface NavbarProps {
-  dark: boolean;
-  onToggleDark: () => void;
-  examCount?: number;
+  readonly dark: boolean;
+  readonly onToggleDark: () => void;
+  readonly examCount?: number;
 }
 
-export function Navbar({ dark, onToggleDark, examCount }: NavbarProps) {
+export function Navbar({ dark, onToggleDark, examCount }: Readonly<NavbarProps>) {
   return (
     <header className="relative overflow-hidden bg-ink-950 text-ink-50">
       <div

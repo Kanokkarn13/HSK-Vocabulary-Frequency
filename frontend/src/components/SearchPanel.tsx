@@ -60,7 +60,7 @@ export function SearchPanel() {
   );
 }
 
-function SearchResult({ data }: { data: SearchWordResponse }) {
+function SearchResult({ data }: Readonly<{ data: SearchWordResponse }>) {
   if (data.aggregates.length === 0 && data.occurrences.length === 0) {
     return (
       <p className="py-6 text-center text-sm text-ink-400">
@@ -103,8 +103,11 @@ function SearchResult({ data }: { data: SearchWordResponse }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
-              {data.occurrences.map((occ, i) => (
-                <tr key={i} className="bg-white dark:bg-ink-950">
+              {data.occurrences.map((occ) => (
+                <tr
+                  key={`${occ.exam_id}-${occ.source_type}-${occ.filename ?? ""}-${occ.year ?? ""}`}
+                  className="bg-white dark:bg-ink-950"
+                >
                   <td className="px-3 py-2 text-ink-600 dark:text-ink-300">
                     {occ.filename ?? occ.exam_id}
                   </td>

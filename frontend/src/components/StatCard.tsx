@@ -1,11 +1,11 @@
 interface StatCardProps {
-  label: string;
-  value: string;
-  hint?: string;
-  accent?: boolean;
+  readonly label: string;
+  readonly value: string;
+  readonly hint?: string;
+  readonly accent?: boolean;
 }
 
-export function StatCard({ label, value, hint, accent }: StatCardProps) {
+export function StatCard({ label, value, hint, accent }: Readonly<StatCardProps>) {
   return (
     <div className="p-5">
       <p className="text-xs font-medium uppercase tracking-wide text-ink-400 dark:text-ink-500">

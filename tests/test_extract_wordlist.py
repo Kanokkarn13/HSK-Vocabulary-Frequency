@@ -88,8 +88,9 @@ def test_fetch_records_propagates_timeout_for_caller_retry_policy():
         def get(self, *args, **kwargs):
             raise requests.Timeout("upstream timeout")
 
+    session = TimeoutSession()
     with pytest.raises(requests.Timeout, match="timeout"):
-        fetch_records("https://example.test/words", session=TimeoutSession())
+        fetch_records("https://example.test/words", session=session)
 
 
 def test_normalize_and_validate_wordlist():
@@ -187,12 +188,13 @@ def test_run_rejects_too_many_invalid_api_rows(monkeypatch, tmp_path):
         lambda *args, **kwargs: [{"id": i, "word": f"bad-{i}", "level": None} for i in range(3)],
     )
 
+    run_time = datetime.now(timezone.utc) + timedelta(days=8)
     with pytest.raises(ValueError, match="exceeds quarantine limits"):
         run(
             output_dir=tmp_path,
             api_url="https://example.test/words",
             force=True,
-            now=datetime.now(timezone.utc) + timedelta(days=8),
+            now=run_time,
         )
 
 

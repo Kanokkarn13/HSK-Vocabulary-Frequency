@@ -2,15 +2,15 @@ import type { ExamRow, SourceType } from "../api/types";
 import { ExamMultiSelect } from "./ExamMultiSelect";
 
 interface FilterBarProps {
-  hskLevel: number | null;
-  onHskLevelChange: (level: number | null) => void;
-  sourceType: SourceType;
-  onSourceTypeChange: (type: SourceType) => void;
-  examLevel: number | null;
-  onExamLevelChange: (level: number | null) => void;
-  examIds: string[];
-  onExamIdsChange: (examIds: string[]) => void;
-  exams: ExamRow[];
+  readonly hskLevel: number | null;
+  readonly onHskLevelChange: (level: number | null) => void;
+  readonly sourceType: SourceType;
+  readonly onSourceTypeChange: (type: SourceType) => void;
+  readonly examLevel: number | null;
+  readonly onExamLevelChange: (level: number | null) => void;
+  readonly examIds: readonly string[];
+  readonly onExamIdsChange: (examIds: string[]) => void;
+  readonly exams: readonly ExamRow[];
 }
 
 const SOURCE_OPTIONS: { value: SourceType; label: string }[] = [
@@ -29,7 +29,7 @@ export function FilterBar({
   examIds,
   onExamIdsChange,
   exams,
-}: FilterBarProps) {
+}: Readonly<FilterBarProps>) {
   const examLevels = [...new Set(exams.map((e) => e.hsk_level).filter((l): l is number => l != null))].sort(
     (a, b) => a - b,
   );

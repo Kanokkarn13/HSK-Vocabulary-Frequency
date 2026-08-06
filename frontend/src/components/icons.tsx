@@ -1,4 +1,4 @@
-type IconProps = { className?: string };
+type IconProps = Readonly<{ className?: string }>;
 
 export function SunIcon({ className }: IconProps) {
   return (

@@ -43,6 +43,7 @@ OUTPUT_COLUMNS = [
     "example_pinyin",
 ]
 REQUIRED_COLUMNS = {"word", "level"}
+WORDLIST_PARQUET = "hsk_wordlist.parquet"
 
 
 def build_http_session() -> requests.Session:
@@ -81,6 +82,55 @@ def _records_from_response(raw: Any) -> tuple[list[dict[str, Any]], dict[str, An
     return records, metadata
 
 
+def _validate_fetch_args(api_url: str, per_page: int) -> None:
+    if not api_url.strip():
+        raise ValueError("HSK_WORDLIST_API_URL is empty")
+    if not api_url.lower().startswith("https://"):
+        raise ValueError("Wordlist API URL must use HTTPS")
+    if per_page <= 0:
+        raise ValueError("per_page must be positive")
+
+
+def _unique_records(
+    records: list[dict[str, Any]],
+    seen_keys: set[str],
+    page: int,
+) -> list[dict[str, Any]]:
+    unique: list[dict[str, Any]] = []
+    for record in records:
+        record_key = record.get("id", record.get("word"))
+        if record_key is None:
+            raise ValueError(f"Wordlist record on page {page} has no id or word")
+        key = str(record_key)
+        if key not in seen_keys:
+            seen_keys.add(key)
+            unique.append(record)
+    return unique
+
+
+def _fetch_page(
+    client: requests.Session,
+    api_url: str,
+    headers: dict[str, str],
+    page: int,
+    per_page: int,
+    timeout: int,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    response = client.get(
+        api_url,
+        headers=headers,
+        params={"page": page, "per_page": per_page},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    return _records_from_response(response.json())
+
+
+def _page_has_next(metadata: dict[str, Any], records: list[dict[str, Any]], per_page: int) -> bool:
+    has_next = metadata.get("has_next")
+    return has_next is not False and not (has_next is None and len(records) < per_page)
+
+
 def fetch_records(
     api_url: str,
     api_key: str = "",
@@ -96,12 +146,7 @@ def fetch_records(
     requests/urllib3.
     """
 
-    if not api_url.strip():
-        raise ValueError("HSK_WORDLIST_API_URL is empty")
-    if not api_url.lower().startswith("https://"):
-        raise ValueError("Wordlist API URL must use HTTPS")
-    if per_page <= 0:
-        raise ValueError("per_page must be positive")
+    _validate_fetch_args(api_url, per_page)
 
     client = session or build_http_session()
     headers = {"X-API-KEY": api_key} if api_key else {}
@@ -111,24 +156,8 @@ def fetch_records(
 
     try:
         while True:
-            response = client.get(
-                api_url,
-                headers=headers,
-                params={"page": page, "per_page": per_page},
-                timeout=timeout,
-            )
-            response.raise_for_status()
-            records, metadata = _records_from_response(response.json())
-
-            new_records = []
-            for record in records:
-                record_key = record.get("id", record.get("word"))
-                if record_key is None:
-                    raise ValueError(f"Wordlist record on page {page} has no id or word")
-                record_key = str(record_key)
-                if record_key not in seen_keys:
-                    seen_keys.add(record_key)
-                    new_records.append(record)
+            records, metadata = _fetch_page(client, api_url, headers, page, per_page, timeout)
+            new_records = _unique_records(records, seen_keys, page)
 
             all_records.extend(new_records)
             LOGGER.info(
@@ -139,8 +168,7 @@ def fetch_records(
                 metadata.get("total_records", "unknown"),
             )
 
-            has_next = metadata.get("has_next")
-            if has_next is False or (has_next is None and len(records) < per_page):
+            if not _page_has_next(metadata, records, per_page):
                 break
             page += 1
     finally:
@@ -242,7 +270,7 @@ def _atomic_write(frame: pd.DataFrame, output_dir: Path, filename: str, writer: 
 
 def _write_snapshot(frame: pd.DataFrame, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    _atomic_write(frame, output_dir, "hsk_wordlist.parquet", lambda data, path: data.to_parquet(path, index=False))
+    _atomic_write(frame, output_dir, WORDLIST_PARQUET, lambda data, path: data.to_parquet(path, index=False))
     _atomic_write(
         frame,
         output_dir,
@@ -273,7 +301,7 @@ def _write_metadata(output_dir: Path, metadata: dict[str, Any]) -> None:
 
 
 def _existing_snapshot(output_dir: Path) -> tuple[pd.DataFrame | None, str | None]:
-    path = output_dir / "hsk_wordlist.parquet"
+    path = output_dir / WORDLIST_PARQUET
     if not path.exists():
         return None, None
     frame = normalize_records(pd.read_parquet(path).to_dict(orient="records"))
@@ -285,6 +313,124 @@ def _existing_snapshot(output_dir: Path) -> tuple[pd.DataFrame | None, str | Non
         LOGGER.warning("Existing wordlist snapshot failed validation: %s", exc)
         return frame, None
     return frame, dataframe_checksum(frame)
+
+
+def _snapshot_age(snapshot_path: Path, current_time: datetime) -> timedelta | None:
+    if not snapshot_path.exists():
+        return None
+    modified = datetime.fromtimestamp(snapshot_path.stat().st_mtime, tz=timezone.utc)
+    return current_time - modified
+
+
+def _fresh_snapshot_result(
+    existing: pd.DataFrame | None,
+    existing_checksum: str | None,
+    snapshot_path: Path,
+    age: timedelta | None,
+    *,
+    force: bool,
+    max_age: timedelta,
+) -> dict[str, Any] | None:
+    if existing is None or existing_checksum is None or force or age is None or age > max_age:
+        return None
+    return {
+        "status": "skipped",
+        "changed": False,
+        "reason": "snapshot_fresh",
+        "checksum": existing_checksum,
+        "row_count": int(len(existing)),
+        "snapshot_path": str(snapshot_path),
+    }
+
+
+def _unconfigured_result(
+    configured_url: str,
+    existing: pd.DataFrame | None,
+    existing_checksum: str | None,
+    snapshot_path: Path,
+    require_api: bool,
+) -> dict[str, Any] | None:
+    if configured_url:
+        return None
+    if existing is not None and existing_checksum is not None and not require_api:
+        LOGGER.warning("HSK_WORDLIST_API_URL is not configured; using existing snapshot")
+        return {
+            "status": "skipped",
+            "changed": False,
+            "reason": "api_not_configured",
+            "checksum": existing_checksum,
+            "row_count": int(len(existing)),
+            "snapshot_path": str(snapshot_path),
+        }
+    if existing is not None and existing_checksum is None:
+        raise ValueError(
+            "Existing HSK wordlist snapshot is invalid; configure HSK_WORDLIST_API_URL "
+            "to refresh it before continuing"
+        )
+    raise ValueError("HSK_WORDLIST_API_URL is required to create or refresh the snapshot")
+
+
+def _fetch_and_validate(
+    configured_url: str,
+    configured_key: str,
+    destination: Path,
+) -> tuple[pd.DataFrame, dict[str, Any], str, int]:
+    fetched = normalize_records(fetch_records(configured_url, configured_key))
+    invalid_mask = _invalid_record_mask(fetched)
+    quarantined_rows = int(invalid_mask.sum())
+    max_invalid = int(os.getenv("HSK_WORDLIST_MAX_INVALID_ROWS", "10"))
+    max_invalid_rate = float(os.getenv("HSK_WORDLIST_MAX_INVALID_RATE", "0.01"))
+    if quarantined_rows:
+        invalid_rate = quarantined_rows / max(len(fetched), 1)
+        if quarantined_rows > max_invalid or invalid_rate > max_invalid_rate:
+            raise ValueError(
+                f"Wordlist contains {quarantined_rows} invalid rows; exceeds quarantine limits "
+                f"({max_invalid} rows/{max_invalid_rate:.2%})"
+            )
+        quarantine_path = destination / "hsk_wordlist_quarantine.csv"
+        _atomic_write(
+            fetched.loc[invalid_mask],
+            destination,
+            quarantine_path.name,
+            lambda data, path: data.to_csv(path, index=False, encoding="utf-8-sig"),
+        )
+        fetched = fetched.loc[~invalid_mask].reset_index(drop=True)
+    quality = validate_wordlist(fetched)
+    return fetched, quality, dataframe_checksum(fetched), quarantined_rows
+
+
+def _persist_refresh(
+    fetched: pd.DataFrame,
+    quality: dict[str, Any],
+    checksum: str,
+    existing: pd.DataFrame | None,
+    existing_checksum: str | None,
+    destination: Path,
+    snapshot_path: Path,
+    fetched_at: str,
+    configured_url: str,
+    quarantined_rows: int,
+) -> dict[str, Any]:
+    changed = existing is None or existing_checksum != checksum
+    status = "updated" if changed else "unchanged"
+    if changed:
+        _write_snapshot(fetched, destination)
+    metadata = {
+        "schema_version": 1,
+        "status": status,
+        "reason": "snapshot_refreshed" if changed else "no_change",
+        "changed": changed,
+        "snapshot_at": fetched_at,
+        "checksum": checksum,
+        "row_count": quality["row_count"],
+        "quarantined_rows": quarantined_rows,
+        "level_counts": quality["level_counts"],
+        "source": "hsk_wordlist_api",
+        "api_url": configured_url,
+    }
+    _write_metadata(destination, metadata)
+    LOGGER.info("Wordlist snapshot %s: rows=%s checksum=%s", status, quality["row_count"], checksum)
+    return {**metadata, "snapshot_path": str(snapshot_path)}
 
 
 def run(
@@ -314,93 +460,46 @@ def run(
     configured_url = (api_url if api_url is not None else os.getenv("HSK_WORDLIST_API_URL", "")).strip()
     configured_key = api_key if api_key is not None else os.getenv("HSK_WORDLIST_API_KEY", "")
 
-    age = None
-    if snapshot_path.exists():
-        modified = datetime.fromtimestamp(snapshot_path.stat().st_mtime, tz=timezone.utc)
-        age = current_time - modified
+    age = _snapshot_age(snapshot_path, current_time)
+    fresh = _fresh_snapshot_result(
+        existing,
+        existing_checksum,
+        snapshot_path,
+        age,
+        force=force,
+        max_age=max_age,
+    )
+    if fresh is not None:
+        return fresh
 
-    if (
-        existing is not None
-        and existing_checksum is not None
-        and not force
-        and age is not None
-        and age <= max_age
-    ):
-        return {
-            "status": "skipped",
-            "changed": False,
-            "reason": "snapshot_fresh",
-            "checksum": existing_checksum,
-            "row_count": int(len(existing)),
-            "snapshot_path": str(snapshot_path),
-        }
-
-    if not configured_url:
-        if existing is not None and existing_checksum is not None and not require_api:
-            LOGGER.warning("HSK_WORDLIST_API_URL is not configured; using existing snapshot")
-            return {
-                "status": "skipped",
-                "changed": False,
-                "reason": "api_not_configured",
-                "checksum": existing_checksum,
-                "row_count": int(len(existing)),
-                "snapshot_path": str(snapshot_path),
-            }
-        if existing is not None and existing_checksum is None:
-            raise ValueError(
-                "Existing HSK wordlist snapshot is invalid; configure HSK_WORDLIST_API_URL "
-                "to refresh it before continuing"
-            )
-        raise ValueError("HSK_WORDLIST_API_URL is required to create or refresh the snapshot")
+    fallback = _unconfigured_result(
+        configured_url,
+        existing,
+        existing_checksum,
+        snapshot_path,
+        require_api,
+    )
+    if fallback is not None:
+        return fallback
 
     fetched_at = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-    fetched = normalize_records(fetch_records(configured_url, configured_key))
-    invalid_mask = _invalid_record_mask(fetched)
-    quarantined_rows = int(invalid_mask.sum())
-    max_invalid = int(os.getenv("HSK_WORDLIST_MAX_INVALID_ROWS", "10"))
-    max_invalid_rate = float(os.getenv("HSK_WORDLIST_MAX_INVALID_RATE", "0.01"))
-    if quarantined_rows:
-        invalid_rate = quarantined_rows / max(len(fetched), 1)
-        if quarantined_rows > max_invalid or invalid_rate > max_invalid_rate:
-            raise ValueError(
-                f"Wordlist contains {quarantined_rows} invalid rows; exceeds quarantine limits "
-                f"({max_invalid} rows/{max_invalid_rate:.2%})"
-            )
-        quarantine_path = destination / "hsk_wordlist_quarantine.csv"
-        _atomic_write(
-            fetched.loc[invalid_mask],
-            destination,
-            quarantine_path.name,
-            lambda data, path: data.to_csv(path, index=False, encoding="utf-8-sig"),
-        )
-        fetched = fetched.loc[~invalid_mask].reset_index(drop=True)
-    quality = validate_wordlist(fetched)
-    checksum = dataframe_checksum(fetched)
-
-    if existing_checksum == checksum and existing is not None:
-        status = "unchanged"
-        changed = False
-    else:
-        _write_snapshot(fetched, destination)
-        status = "updated"
-        changed = True
-
-    metadata = {
-        "schema_version": 1,
-        "status": status,
-        "reason": "no_change" if not changed else "snapshot_refreshed",
-        "changed": changed,
-        "snapshot_at": fetched_at,
-        "checksum": checksum,
-        "row_count": quality["row_count"],
-        "quarantined_rows": quarantined_rows,
-        "level_counts": quality["level_counts"],
-        "source": "hsk_wordlist_api",
-        "api_url": configured_url,
-    }
-    _write_metadata(destination, metadata)
-    LOGGER.info("Wordlist snapshot %s: rows=%s checksum=%s", status, quality["row_count"], checksum)
-    return {**metadata, "snapshot_path": str(snapshot_path)}
+    fetched, quality, checksum, quarantined_rows = _fetch_and_validate(
+        configured_url,
+        configured_key,
+        destination,
+    )
+    return _persist_refresh(
+        fetched,
+        quality,
+        checksum,
+        existing,
+        existing_checksum,
+        destination,
+        snapshot_path,
+        fetched_at,
+        configured_url,
+        quarantined_rows,
+    )
 
 
 def main() -> int:

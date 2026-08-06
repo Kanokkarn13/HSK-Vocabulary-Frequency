@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { fetchExams, fetchHealth, fetchTopWords } from "./api/client";
-import type { SourceType } from "./api/types";
+import type { SourceType, TopWordsResponse } from "./api/types";
 import { ActiveFilterChips } from "./components/ActiveFilterChips";
 import { FilterBar } from "./components/FilterBar";
 import { FilterIcon, XIcon } from "./components/icons";
@@ -23,7 +23,7 @@ function useDarkMode() {
   return { dark, toggle: () => setDark((d) => !d) };
 }
 
-function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) {
+function SectionHeading({ eyebrow, title }: Readonly<{ eyebrow: string; title: string }>) {
   return (
     <div className="mb-4">
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600 dark:text-brand-400">
@@ -33,6 +33,68 @@ function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) 
         {title}
       </h3>
     </div>
+  );
+}
+
+type TopWordsState =
+  | { status: "loading"; data?: undefined; error?: undefined }
+  | { status: "error"; data?: undefined; error: string }
+  | { status: "success"; data: TopWordsResponse; error?: undefined };
+
+function StatsGrid({ topWords }: Readonly<{ topWords: TopWordsState }>) {
+  const totalOccurrences =
+    topWords.status === "success"
+      ? topWords.data.items.reduce((sum, row) => sum + row.total_frequency, 0)
+      : null;
+  const officialCount =
+    topWords.status === "success"
+      ? topWords.data.items.filter((row) => row.in_official_wordlist).length
+      : null;
+  const maxExamCount =
+    topWords.status === "success" && topWords.data.items.length > 0
+      ? Math.max(...topWords.data.items.map((row) => row.exam_count))
+      : null;
+  const notInHskCount =
+    topWords.status === "success" ? topWords.data.items.length - officialCount! : null;
+
+  return (
+    <section className="grid grid-cols-2 divide-y divide-ink-200 overflow-hidden rounded-2xl border border-ink-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0 dark:divide-ink-800 dark:border-ink-800 dark:bg-ink-900">
+      <StatCard label="คำศัพท์ที่พบทั้งหมด" value={topWords.status === "success" ? topWords.data.total_count.toLocaleString() : "—"} hint="ในขอบเขตที่กรองไว้ตอนนี้" />
+      <StatCard label="ความถี่รวม" value={totalOccurrences != null ? totalOccurrences.toLocaleString() : "—"} hint="ครั้งที่พบในข้อสอบทั้งหมด" />
+      <StatCard label="ชุดข้อสอบสูงสุดที่เจอคำเดียวกัน" value={maxExamCount != null ? `${maxExamCount} ชุด` : "—"} hint="คำที่พบในข้อสอบหลายชุดที่สุดในตัวกรองนี้" accent />
+      <StatCard label="ไม่อยู่ใน HSK" value={notInHskCount != null ? notInHskCount.toLocaleString() : "—"} hint="คำนอกเหนือคำศัพท์ HSK ทางการ" />
+    </section>
+  );
+}
+
+type FilterSheetProps = Readonly<{
+  open: boolean;
+  onClose: () => void;
+  filterBarProps: ComponentProps<typeof FilterBar>;
+}>;
+
+function FilterSheet({ open, onClose, filterBarProps }: FilterSheetProps) {
+  if (!open) return null;
+  return (
+    <dialog
+      open
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
+      aria-modal="true"
+      aria-label="ตัวกรอง"
+    >
+      <div className="max-h-[85vh] w-full overflow-y-auto overflow-x-hidden rounded-t-2xl bg-[#faf8f6] p-4 pb-6 shadow-xl sm:max-w-2xl sm:rounded-2xl dark:bg-ink-950">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-ink-700 dark:text-ink-200">ตัวกรอง</h3>
+          <button type="button" onClick={onClose} aria-label="ปิด" className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-600 dark:hover:bg-ink-800 dark:hover:text-ink-300">
+            <XIcon className="h-4 w-4" />
+          </button>
+        </div>
+        <FilterBar {...filterBarProps} />
+        <button type="button" onClick={onClose} className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700">
+          ดูผลลัพธ์
+        </button>
+      </div>
+    </dialog>
   );
 }
 
@@ -110,21 +172,6 @@ export default function App() {
     [hskLevel, sourceType, examLevel, examIds],
   );
 
-  const totalOccurrences =
-    topWords.status === "success"
-      ? topWords.data.items.reduce((sum, r) => sum + r.total_frequency, 0)
-      : null;
-  const officialCount =
-    topWords.status === "success"
-      ? topWords.data.items.filter((r) => r.in_official_wordlist).length
-      : null;
-  const maxExamCount =
-    topWords.status === "success" && topWords.data.items.length > 0
-      ? Math.max(...topWords.data.items.map((r) => r.exam_count))
-      : null;
-  const notInHskCount =
-    topWords.status === "success" ? topWords.data.items.length - officialCount! : null;
-
   return (
     <div className="min-h-screen bg-[#faf8f6] dark:bg-ink-950">
       <Navbar
@@ -142,29 +189,7 @@ export default function App() {
           <FilterBar {...filterBarProps} />
         </div>
 
-        <section className="grid grid-cols-2 divide-y divide-ink-200 overflow-hidden rounded-2xl border border-ink-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0 dark:divide-ink-800 dark:border-ink-800 dark:bg-ink-900">
-          <StatCard
-            label="คำศัพท์ที่พบทั้งหมด"
-            value={topWords.status === "success" ? topWords.data.total_count.toLocaleString() : "—"}
-            hint="ในขอบเขตที่กรองไว้ตอนนี้"
-          />
-          <StatCard
-            label="ความถี่รวม"
-            value={totalOccurrences != null ? totalOccurrences.toLocaleString() : "—"}
-            hint="ครั้งที่พบในข้อสอบทั้งหมด"
-          />
-          <StatCard
-            label="ชุดข้อสอบสูงสุดที่เจอคำเดียวกัน"
-            value={maxExamCount != null ? `${maxExamCount} ชุด` : "—"}
-            hint="คำที่พบในข้อสอบหลายชุดที่สุดในตัวกรองนี้"
-            accent
-          />
-          <StatCard
-            label="ไม่อยู่ใน HSK"
-            value={notInHskCount != null ? notInHskCount.toLocaleString() : "—"}
-            hint="คำนอกเหนือคำศัพท์ HSK ทางการ"
-          />
-        </section>
+        <StatsGrid topWords={topWords} />
 
         <section className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm dark:border-ink-800 dark:bg-ink-900">
           <SectionHeading eyebrow="ภาพรวม" title="คำศัพท์ที่พบบ่อยที่สุด 15 อันดับ" />
@@ -222,38 +247,7 @@ export default function App() {
         </button>
       )}
 
-      {filterSheetOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="ตัวกรอง"
-        >
-          <div
-            className="max-h-[85vh] w-full overflow-y-auto overflow-x-hidden rounded-t-2xl bg-[#faf8f6] p-4 pb-6 shadow-xl sm:max-w-2xl sm:rounded-2xl dark:bg-ink-950"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-ink-700 dark:text-ink-200">ตัวกรอง</h3>
-              <button
-                type="button"
-                onClick={() => setFilterSheetOpen(false)}
-                aria-label="ปิด"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-600 dark:hover:bg-ink-800 dark:hover:text-ink-300"
-              >
-                <XIcon className="h-4 w-4" />
-              </button>
-            </div>
-            <FilterBar {...filterBarProps} />
-            <button
-              type="button"
-              onClick={() => setFilterSheetOpen(false)}
-              className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
-            >
-              ดูผลลัพธ์
-            </button>
-          </div>
-        </div>
-      )}
+      <FilterSheet open={filterSheetOpen} onClose={() => setFilterSheetOpen(false)} filterBarProps={filterBarProps} />
     </div>
   );
 }

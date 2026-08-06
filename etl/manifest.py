@@ -131,6 +131,92 @@ def _validate_raw(frame: pd.DataFrame, *, require_sources: bool = True) -> dict[
     return {"row_count": int(len(frame)), "source_types": sorted(frame["source_type"].unique().tolist())}
 
 
+def _extract_source_text(
+    source: dict[str, Any],
+    previous_by_key: dict[str, dict[str, Any]],
+    checkpoint_sources: dict[str, dict[str, Any]],
+    text_root: Path,
+    transcriber: Any,
+    *,
+    transcriber_factory: Callable[[], Any] | None,
+) -> tuple[dict[str, Any], Any]:
+    """Extract or reuse one source and return its manifest row."""
+
+    previous_row = previous_by_key.get(source["source_key"], {})
+    checkpoint_row = checkpoint_sources.get(source["source_key"], {})
+    text_path_value = checkpoint_row.get("text_path") or previous_row.get("text_path")
+    text_path = Path(text_path_value) if text_path_value else None
+    unchanged = previous_row.get("sha256") == source["sha256"] and text_path is not None and text_path.exists()
+    if unchanged:
+        text = text_path.read_text(encoding="utf-8")
+        status = "reused"
+    else:
+        text, transcriber = _extract_new_source(source, transcriber, transcriber_factory)
+        if not str(text).strip():
+            raise ValueError("extraction returned empty text")
+        text_path = text_root / source["source_type"] / f"{source['sha256']}.txt"
+        text_path.parent.mkdir(parents=True, exist_ok=True)
+        text_path.write_text(str(text), encoding="utf-8")
+        status = "extracted"
+
+    enriched = {
+        **source,
+        "status": status,
+        "text_path": str(text_path),
+        "text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "text_length": len(text),
+        "text": text,
+    }
+    return enriched, transcriber
+
+
+def _extract_new_source(
+    source: dict[str, Any],
+    transcriber: Any,
+    transcriber_factory: Callable[[], Any] | None,
+) -> tuple[str, Any]:
+    source_path = Path(source["absolute_path"])
+    if source["source_type"] == "reading":
+        from etl.extract_pdf import extract_text_from_pdf
+
+        return extract_text_from_pdf(source_path), transcriber
+
+    if transcriber is None:
+        if transcriber_factory is not None:
+            transcriber = transcriber_factory()
+        else:
+            from etl.transcribe_audio import load_model, transcribe_file
+
+            transcriber = (load_model(), transcribe_file)
+    if isinstance(transcriber, tuple):
+        return transcriber[1](transcriber[0], source_path), transcriber
+    return transcriber(source_path), transcriber
+
+
+def _reuse_existing_snapshot(
+    stage: Path,
+    existing_raw_path: str | Path | None,
+    require_sources: bool,
+    batch_id: str,
+) -> dict[str, Any] | None:
+    if require_sources or not existing_raw_path:
+        return None
+    raw_path = Path(existing_raw_path)
+    if not raw_path.exists():
+        return None
+    frame = pd.read_parquet(raw_path)
+    quality = _validate_raw(frame, require_sources=True)
+    _atomic_parquet(frame, stage / "raw_extractions.parquet")
+    return {
+        "status": "skipped",
+        "reason": "no_source_files",
+        "changed_source_count": 0,
+        "reused_source_count": 0,
+        **quality,
+        "batch_id": batch_id,
+    }
+
+
 def run_extraction(
     *,
     batch_id: str,
@@ -164,19 +250,9 @@ def run_extraction(
     if source_types is not None:
         inventory = [source for source in inventory if source["source_type"] in source_types]
     if not inventory:
-        raw_path = Path(existing_raw_path) if existing_raw_path else None
-        if raw_path and raw_path.exists() and not require_sources:
-            frame = pd.read_parquet(raw_path)
-            quality = _validate_raw(frame, require_sources=True)
-            _atomic_parquet(frame, stage / "raw_extractions.parquet")
-            return {
-                "status": "skipped",
-                "reason": "no_source_files",
-                "changed_source_count": 0,
-                "reused_source_count": 0,
-                **quality,
-                "batch_id": batch_id,
-            }
+        reused = _reuse_existing_snapshot(stage, existing_raw_path, require_sources, batch_id)
+        if reused is not None:
+            return reused
         raise FileNotFoundError("No supported PDF/audio source files were found")
 
     transcriber = None
@@ -185,59 +261,21 @@ def run_extraction(
     changed_source_count = 0
     reused_source_count = 0
     for source in inventory:
-        source_key = source["source_key"]
-        previous_row = previous_by_key.get(source_key, {})
-        checkpoint_row = checkpoint_sources.get(source_key, {})
-        # Prefer the current-run checkpoint, but fall back to the last
-        # successful manifest.  This is what makes an unchanged file truly
-        # incremental across separate Airflow runs (each run has a new batch
-        # directory).
-        text_path_value = checkpoint_row.get("text_path") or previous_row.get("text_path")
-        text_path = Path(text_path_value) if text_path_value else None
-        unchanged = (
-            previous_row.get("sha256") == source["sha256"]
-            and text_path is not None
-            and text_path.exists()
-        )
         try:
-            if unchanged:
-                text = text_path.read_text(encoding="utf-8")
-                status = "reused"
-            else:
-                source_path = Path(source["absolute_path"])
-                if source["source_type"] == "reading":
-                    from etl.extract_pdf import extract_text_from_pdf
-
-                    text = extract_text_from_pdf(source_path)
-                else:
-                    if transcriber is None:
-                        if transcriber_factory is not None:
-                            transcriber = transcriber_factory()
-                        else:
-                            from etl.transcribe_audio import load_model, transcribe_file
-
-                            transcriber = (load_model(), transcribe_file)
-                    if isinstance(transcriber, tuple):
-                        text = transcriber[1](transcriber[0], source_path)
-                    else:
-                        text = transcriber(source_path)
-                if not str(text).strip():
-                    raise ValueError("extraction returned empty text")
-                text_path = text_root / source["source_type"] / f"{source['sha256']}.txt"
-                text_path.parent.mkdir(parents=True, exist_ok=True)
-                text_path.write_text(str(text), encoding="utf-8")
-                status = "extracted"
-
-            source["status"] = status
-            source["text_path"] = str(text_path)
-            source["text_sha256"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
-            source["text_length"] = len(text)
-            rows.append({**source, "text": text})
-            if status == "extracted":
+            enriched, transcriber = _extract_source_text(
+                source,
+                previous_by_key,
+                checkpoint_sources,
+                text_root,
+                transcriber,
+                transcriber_factory=transcriber_factory,
+            )
+            rows.append(enriched)
+            if enriched["status"] == "extracted":
                 changed_source_count += 1
             else:
                 reused_source_count += 1
-            checkpoint_sources[source_key] = source
+            checkpoint_sources[source["source_key"]] = {key: value for key, value in enriched.items() if key != "text"}
             _atomic_json(checkpoint_path, {"batch_id": batch_id, "sources": checkpoint_sources})
         except Exception as exc:  # noqa: BLE001 - preserve all source errors in the report
             quarantine_path = _quarantine(Path(source["absolute_path"]), stage / "quarantine", batch_id)
@@ -264,7 +302,12 @@ def run_extraction(
         if row.get("source_type") not in processed_types
         or row.get("source_key") in current_source_keys
     }
-    merged_sources.update({row["source_key"]: row for row in rows})
+    merged_sources.update(
+        {
+            row["source_key"]: {key: value for key, value in row.items() if key != "text"}
+            for row in rows
+        }
+    )
     manifest = {
         "schema_version": 1,
         "batch_id": batch_id,

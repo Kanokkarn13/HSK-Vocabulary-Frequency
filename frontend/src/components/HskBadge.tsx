@@ -7,7 +7,7 @@ export const LEVEL_STYLES: Record<number, string> = {
   6: "bg-lime-100 text-lime-700 dark:bg-lime-500/15 dark:text-lime-400",
 };
 
-export function HskBadge({ level }: { level: number | null }) {
+export function HskBadge({ level }: Readonly<{ level: number | null }>) {
   if (level == null) {
     return (
       <span className="inline-flex items-center rounded-full bg-ink-100 px-2.5 py-0.5 text-xs font-medium text-ink-500 dark:bg-ink-500/15 dark:text-ink-400">

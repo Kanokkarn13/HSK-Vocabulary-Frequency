@@ -13,7 +13,7 @@ import type { TopWordRow } from "../api/types";
 const BAR_COLOR = "#7d2740";
 const BAR_COLOR_UNOFFICIAL = "#c9bfb4";
 
-export function TopWordsChart({ items }: { items: TopWordRow[] }) {
+export function TopWordsChart({ items }: Readonly<{ items: readonly TopWordRow[] }>) {
   const data = [...items].slice(0, 15).map((it) => ({ ...it, label: it.word }));
   const maxWordLength = Math.max(...data.map((it) => it.label.length), 1);
   const yAxisWidth = Math.min(140, Math.max(56, maxWordLength * 22 + 16));
@@ -49,9 +49,9 @@ export function TopWordsChart({ items }: { items: TopWordRow[] }) {
             itemStyle={{ color: "#7d2740" }}
           />
           <Bar dataKey="total_frequency" radius={[0, 6, 6, 0]} barSize={16}>
-            {data.map((entry, idx) => (
+            {data.map((entry) => (
               <Cell
-                key={idx}
+                key={entry.word}
                 fill={entry.in_official_wordlist ? BAR_COLOR : BAR_COLOR_UNOFFICIAL}
               />
             ))}

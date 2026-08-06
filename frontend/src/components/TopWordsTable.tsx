@@ -32,7 +32,7 @@ function getPageNumbers(current: number, total: number): (number | "ellipsis")[]
   return result;
 }
 
-export function TopWordsTable({ items }: { items: TopWordRow[] }) {
+export function TopWordsTable({ items }: Readonly<{ items: readonly TopWordRow[] }>) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
@@ -152,26 +152,36 @@ export function TopWordsTable({ items }: { items: TopWordRow[] }) {
                 <ChevronLeftIcon className="h-4 w-4" />
               </button>
 
-              {getPageNumbers(currentPage, totalPages).map((p, i) =>
-                p === "ellipsis" ? (
-                  <span key={`e${i}`} className="px-1.5 text-sm text-ink-400">
-                    …
-                  </span>
-                ) : (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPage(p)}
-                    className={`h-8 min-w-8 rounded-lg px-2 text-sm font-medium tabular-nums transition ${
-                      p === currentPage
-                        ? "bg-brand-600 text-white"
-                        : "text-ink-600 hover:bg-ink-100 dark:text-ink-300 dark:hover:bg-ink-800"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ),
-              )}
+              {(() => {
+                const seenEllipses = new Set<string>();
+                return getPageNumbers(currentPage, totalPages).map((p) => {
+                  if (p === "ellipsis") {
+                    const key = seenEllipses.has("ellipsis-left")
+                      ? "ellipsis-right"
+                      : "ellipsis-left";
+                    seenEllipses.add(key);
+                    return (
+                      <span key={key} className="px-1.5 text-sm text-ink-400">
+                        …
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPage(p)}
+                      className={`h-8 min-w-8 rounded-lg px-2 text-sm font-medium tabular-nums transition ${
+                        p === currentPage
+                          ? "bg-brand-600 text-white"
+                          : "text-ink-600 hover:bg-ink-100 dark:text-ink-300 dark:hover:bg-ink-800"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                });
+              })()}
 
               <button
                 type="button"
