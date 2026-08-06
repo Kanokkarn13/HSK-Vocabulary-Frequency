@@ -7,25 +7,30 @@ import { XIcon } from "./icons";
 import { ErrorPanel, LoadingPanel } from "./StatusPanel";
 
 /** Render a sentence with every occurrence of `word` highlighted. */
-function HighlightedSentence({ sentence, word }: { sentence: string; word: string }) {
+function HighlightedSentence({ sentence, word }: Readonly<{ sentence: string; word: string }>) {
   const parts = sentence.split(word);
+  const occurrences = new Map<string, number>();
   return (
     <span className="font-zh text-base leading-relaxed text-ink-800 dark:text-ink-100">
-      {parts.map((part, i) => (
-        <span key={i}>
+      {parts.map((part, partIndex) => {
+        const occurrence = occurrences.get(part) ?? 0;
+        occurrences.set(part, occurrence + 1);
+        return (
+        <span key={`${part}-${occurrence}`}>
           {part}
-          {i < parts.length - 1 && (
+          {partIndex < parts.length - 1 && (
             <span className="rounded bg-brand-100 px-0.5 font-semibold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">
               {word}
             </span>
           )}
         </span>
-      ))}
+        );
+      })}
     </span>
   );
 }
 
-function SourceChip({ s }: { s: ExampleSentence }) {
+function SourceChip({ s }: Readonly<{ s: ExampleSentence }>) {
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-400 dark:text-ink-500">
       <span
@@ -44,7 +49,7 @@ function SourceChip({ s }: { s: ExampleSentence }) {
   );
 }
 
-export function WordDetailModal({ word, onClose }: { word: string; onClose: () => void }) {
+export function WordDetailModal({ word, onClose }: Readonly<{ word: string; onClose: () => void }>) {
   const detail = useAsync(() => fetchWordDetail(word), [word]);
 
   useEffect(() => {
@@ -60,9 +65,9 @@ export function WordDetailModal({ word, onClose }: { word: string; onClose: () =
   }, [onClose]);
 
   return (
-    <div
+    <dialog
+      open
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      role="dialog"
       aria-modal="true"
       aria-label={`รายละเอียดคำว่า ${word}`}
     >
@@ -131,9 +136,9 @@ export function WordDetailModal({ word, onClose }: { word: string; onClose: () =
                     </span>
                   </div>
                   <ul className="space-y-3">
-                    {detail.data.sentences.map((s, i) => (
+                    {detail.data.sentences.map((s) => (
                       <li
-                        key={i}
+                        key={`${s.exam_id}-${s.source_type}-${s.filename ?? ""}-${s.sentence}`}
                         className="rounded-xl border border-ink-100 bg-ink-50/60 p-3 dark:border-ink-800 dark:bg-ink-800/40"
                       >
                         <HighlightedSentence sentence={s.sentence} word={word} />
@@ -153,6 +158,6 @@ export function WordDetailModal({ word, onClose }: { word: string; onClose: () =
           )}
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

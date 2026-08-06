@@ -67,25 +67,39 @@ def _block_matches(clauses: list[str], first: int, second: int, block_len: int) 
     )
 
 
+def _find_repeated_block(clauses: list[str], index: int) -> tuple[int, int] | None:
+    upper = min(MAX_BLOCK, (len(clauses) - index) // 2)
+    for block_len in range(upper, 0, -1):
+        if block_len == 1 and len(clauses[index]) < MIN_SINGLE_LEN:
+            continue
+        if index + 2 * block_len <= len(clauses) and _block_matches(
+            clauses, index, index + block_len, block_len
+        ):
+            return block_len, index + block_len
+    return None
+
+
+def _consume_repeated_block(clauses: list[str], index: int, block_len: int) -> int:
+    next_index = index + block_len
+    while next_index + block_len <= len(clauses) and _block_matches(
+        clauses, next_index - block_len, next_index, block_len
+    ):
+        next_index += block_len
+    return next_index
+
+
 def dedupe_repeated_clauses(clauses: list[str]) -> list[str]:
     result: list[str] = []
     index = 0
     while index < len(clauses):
-        matched = False
-        upper = min(MAX_BLOCK, (len(clauses) - index) // 2)
-        for block_len in range(upper, 0, -1):
-            if block_len == 1 and len(clauses[index]) < MIN_SINGLE_LEN:
-                continue
-            if index + 2 * block_len <= len(clauses) and _block_matches(clauses, index, index + block_len, block_len):
-                result.extend(clauses[index : index + block_len])
-                index += block_len
-                while index + block_len <= len(clauses) and _block_matches(clauses, index - block_len, index, block_len):
-                    index += block_len
-                matched = True
-                break
-        if not matched:
+        repeated = _find_repeated_block(clauses, index)
+        if repeated is None:
             result.append(clauses[index])
             index += 1
+            continue
+        block_len, _ = repeated
+        result.extend(clauses[index : index + block_len])
+        index = _consume_repeated_block(clauses, index, block_len)
     return result
 
 

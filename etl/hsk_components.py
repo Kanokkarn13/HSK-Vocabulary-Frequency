@@ -20,6 +20,56 @@ _SURNAME_CHARS = set(
 _NAME_TAILS = {"先生", "小姐", "老师", "医生", "经理"}
 
 
+def _is_decomposable_token(token: str, vocabulary: set[str], max_word_chars: int) -> bool:
+    if not token or max_word_chars < 2 or token in vocabulary:
+        return False
+    if token[0] in _SURNAME_CHARS and token[1:] in _NAME_TAILS:
+        return False
+    return len(token) >= 2 and all("\u4e00" <= char <= "\u9fff" for char in token)
+
+
+def _candidate_words(token: str, vocabulary: set[str], max_word_chars: int) -> list[list[str]]:
+    candidates: list[list[str]] = [[] for _ in range(len(token) + 1)]
+    for start in range(len(token)):
+        for end in range(start + 1, min(len(token), start + max_word_chars) + 1):
+            part = token[start:end]
+            if part in vocabulary:
+                candidates[start].append(part)
+    return candidates
+
+
+def _extend_score(
+    state: tuple[int, int, int, list[str]],
+    part: str,
+) -> tuple[int, int, int, list[str]]:
+    return (
+        state[0] + int(len(part) >= 2),
+        state[1] + len(part) ** 2,
+        state[2] - 1,
+        state[3] + [part],
+    )
+
+
+def _best_component_path(token: str, vocabulary: set[str], max_word_chars: int) -> list[str] | None:
+    best: list[tuple[int, int, int, list[str]] | None] = [None] * (len(token) + 1)
+    best[0] = (0, 0, 0, [])
+    candidates = _candidate_words(token, vocabulary, max_word_chars)
+    for start in range(len(token)):
+        state = best[start]
+        if state is None:
+            continue
+        for part in candidates[start]:
+            end = start + len(part)
+            candidate = _extend_score(state, part)
+            current = best[end]
+            if current is None or candidate[:3] > current[:3]:
+                best[end] = candidate
+    result = best[-1]
+    if result is None or not any(len(part) >= 2 for part in result[3]):
+        return None
+    return result[3]
+
+
 def resolve_components(
     token: str,
     hsk_words: Mapping[str, int] | set[str],
@@ -39,36 +89,9 @@ def resolve_components(
     vocabulary = set(hsk_words)
     if token in vocabulary:
         return [token]
-    if token[0] in _SURNAME_CHARS and token[1:] in _NAME_TAILS:
+    if not _is_decomposable_token(token, vocabulary, max_word_chars):
         return None
-    if len(token) < 2 or any(not ("\u4e00" <= char <= "\u9fff") for char in token):
-        return None
-
-    best: list[tuple[int, int, int, list[str]] | None] = [None] * (len(token) + 1)
-    best[0] = (0, 0, 0, [])
-    for start in range(len(token)):
-        state = best[start]
-        if state is None:
-            continue
-        for end in range(start + 1, min(len(token), start + max_word_chars) + 1):
-            part = token[start:end]
-            if part not in vocabulary:
-                continue
-            multi = int(len(part) >= 2)
-            candidate = (
-                state[0] + multi,
-                state[1] + len(part) ** 2,
-                state[2] - 1,
-                state[3] + [part],
-            )
-            current = best[end]
-            if current is None or candidate[:3] > current[:3]:
-                best[end] = candidate
-
-    result = best[-1]
-    if result is None or not any(len(part) >= 2 for part in result[3]):
-        return None
-    return result[3]
+    return _best_component_path(token, vocabulary, max_word_chars)
 
 
 def component_levels(

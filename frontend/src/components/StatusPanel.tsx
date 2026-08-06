@@ -5,7 +5,7 @@ const LOADING_CHARS = [
   { char: "语", pinyin: "yǔ" },
 ];
 
-export function LoadingPanel({ label = "กำลังโหลดข้อมูล..." }: { label?: string }) {
+export function LoadingPanel({ label = "กำลังโหลดข้อมูล..." }: Readonly<{ label?: string }>) {
   return (
     <div className="flex flex-col items-center justify-center gap-5 py-16 text-ink-400">
       <div className="flex gap-3" aria-hidden="true">
@@ -31,7 +31,7 @@ export function LoadingPanel({ label = "กำลังโหลดข้อม�
   );
 }
 
-export function ErrorPanel({ message }: { message: string }) {
+export function ErrorPanel({ message }: Readonly<{ message: string }>) {
   return (
     <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
       <p className="font-semibold">โหลดข้อมูลไม่สำเร็จ</p>
@@ -43,10 +43,10 @@ export function ErrorPanel({ message }: { message: string }) {
 export function EmptyPanel({
   title = "ยังไม่มีข้อมูล",
   description,
-}: {
+}: Readonly<{
   title?: string;
   description?: string;
-}) {
+}>) {
   return (
     <div className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-ink-200 bg-white/60 py-16 text-center dark:border-ink-800 dark:bg-ink-900/40">
       <p className="font-medium text-ink-500 dark:text-ink-400">{title}</p>

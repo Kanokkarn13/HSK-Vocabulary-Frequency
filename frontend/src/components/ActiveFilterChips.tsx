@@ -2,17 +2,17 @@ import type { SourceType } from "../api/types";
 import { XIcon } from "./icons";
 
 interface ActiveFilterChipsProps {
-  hskLevel: number | null;
-  onHskLevelChange: (level: number | null) => void;
-  sourceType: SourceType;
-  onSourceTypeChange: (type: SourceType) => void;
-  examLevel: number | null;
-  onExamLevelChange: (level: number | null) => void;
-  examIds: string[];
-  onExamIdsChange: (examIds: string[]) => void;
+  readonly hskLevel: number | null;
+  readonly onHskLevelChange: (level: number | null) => void;
+  readonly sourceType: SourceType;
+  readonly onSourceTypeChange: (type: SourceType) => void;
+  readonly examLevel: number | null;
+  readonly onExamLevelChange: (level: number | null) => void;
+  readonly examIds: readonly string[];
+  readonly onExamIdsChange: (examIds: string[]) => void;
 }
 
-function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
+function Chip({ label, onRemove }: Readonly<{ label: string; onRemove: () => void }>) {
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 py-1 pl-3 pr-1.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-200 dark:bg-brand-500/10 dark:text-brand-300 dark:ring-brand-500/30">
       {label}
@@ -39,7 +39,7 @@ export function ActiveFilterChips({
   onExamLevelChange,
   examIds,
   onExamIdsChange,
-}: ActiveFilterChipsProps) {
+}: Readonly<ActiveFilterChipsProps>) {
   const hasAny =
     hskLevel != null || sourceType !== "all" || examLevel != null || examIds.length > 0;
   if (!hasAny) return null;

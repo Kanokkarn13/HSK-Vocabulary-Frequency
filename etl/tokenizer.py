@@ -89,6 +89,42 @@ def _merge_hsk_boundaries(
     return result
 
 
+def _index_baseline_tokens(tokens: list[str]) -> dict[int, list[str]]:
+    indexed: dict[int, list[str]] = {}
+    cursor = 0
+    for token in tokens:
+        indexed.setdefault(cursor, []).append(token)
+        cursor += len(token)
+    return indexed
+
+
+def _index_hsk_words(text: str, hsk_words: set[str], max_word_chars: int) -> dict[int, list[str]]:
+    indexed: dict[int, list[str]] = {}
+    for start in range(len(text)):
+        for end in range(start + 2, min(len(text), start + max_word_chars) + 1):
+            candidate = text[start:end]
+            if candidate in hsk_words:
+                indexed.setdefault(start, []).append(candidate)
+    return indexed
+
+
+def _candidate_score(
+    current: tuple[int, int, int, int, int],
+    candidate: str,
+    hsk_words: set[str],
+    baseline_candidates: set[str],
+) -> tuple[int, int, int, int, int]:
+    is_baseline_single = len(candidate) == 1 and candidate in baseline_candidates
+    is_hsk = candidate in hsk_words and (len(candidate) >= 2 or is_baseline_single)
+    return (
+        current[0] + (len(candidate) if is_hsk else 0),
+        current[1] + (len(candidate) ** 2 if is_hsk else 0),
+        current[2] - (0 if is_hsk else len(candidate)),
+        current[3] - 1,
+        current[4] + (len(candidate) if candidate in baseline_candidates else 0),
+    )
+
+
 def _dp_segment_run(
     text: str,
     baseline_tokens: list[str],
@@ -105,18 +141,8 @@ def _dp_segment_run(
     splitting of every unknown compound into level-1 characters.
     """
 
-    baseline_by_start: dict[int, list[str]] = {}
-    cursor = 0
-    for token in baseline_tokens:
-        baseline_by_start.setdefault(cursor, []).append(token)
-        cursor += len(token)
-
-    hsk_by_start: dict[int, list[str]] = {}
-    for start in range(len(text)):
-        for end in range(start + 2, min(len(text), start + max_word_chars) + 1):
-            candidate = text[start:end]
-            if candidate in hsk_words:
-                hsk_by_start.setdefault(start, []).append(candidate)
+    baseline_by_start = _index_baseline_tokens(baseline_tokens)
+    hsk_by_start = _index_hsk_words(text, hsk_words, max_word_chars)
 
     # (HSK chars, long-HSK preference, -unmatched chars, -token count,
     #  Jieba-compatible chars)
@@ -130,19 +156,10 @@ def _dp_segment_run(
             continue
         baseline_candidates = set(baseline_by_start.get(start, []))
         candidates = set(hsk_by_start.get(start, [])) | baseline_candidates | {text[start]}
-
+        current = best_score[start]
         for candidate in candidates:
             end = start + len(candidate)
-            is_baseline_single = len(candidate) == 1 and candidate in baseline_candidates
-            is_hsk = candidate in hsk_words and (len(candidate) >= 2 or is_baseline_single)
-            current = best_score[start]
-            score = (
-                current[0] + (len(candidate) if is_hsk else 0),
-                current[1] + (len(candidate) ** 2 if is_hsk else 0),
-                current[2] - (0 if is_hsk else len(candidate)),
-                current[3] - 1,
-                current[4] + (len(candidate) if candidate in baseline_candidates else 0),
-            )
+            score = _candidate_score(current, candidate, hsk_words, baseline_candidates)
             if score > best_score[end]:
                 best_score[end] = score
                 best_tokens[end] = best_tokens[start] + [candidate]
