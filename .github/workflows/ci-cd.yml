@@ -85,7 +85,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Download tested coverage report
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: coverage-report
           path: .
@@ -95,7 +95,7 @@ jobs:
           pip install bandit
 
       - name: Download tested coverage report
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: coverage-report
           path: .
